@@ -1,10 +1,10 @@
 from datetime import date, time, datetime
-from orsjon import loads
+from typing import Dict
 
 import pytest
 
 import pymssqlutils as sql
-from pymssqlutils import DatabaseResult, Row
+from pymssqlutils import DatabaseResult
 
 
 def test_with_conn_details_from_args():
@@ -70,8 +70,7 @@ def test_query(monkeypatch, mock_pymssql_connect):
     assert result.ok
     assert result.command == "query"
 
-    # to test it is a Row class that can be accessed by col name or index value
-    assert isinstance(result.data[0], Row)
+    assert isinstance(result.data[0], Dict)
     assert result.data[0]["Col_Date"]
 
 
@@ -114,6 +113,4 @@ def test_data_serializable(monkeypatch, mock_pymssql_connect):
     result = sql.query("test query")
 
     assert isinstance(result.to_json(), str)
-    assert isinstance(result.to_json(), bytes)
-
-    assert result.data == loads(result.to_json())
+    assert isinstance(result.to_json(as_bytes=True), bytes)

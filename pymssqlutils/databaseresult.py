@@ -44,7 +44,7 @@ def _clean(item: Any) -> Any:
 
         match = _is_time(item)
         if match:
-            return dt.time(
+            return time(
                 int(match[1]),
                 int(match[2]),
                 int(match[3]),
