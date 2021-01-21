@@ -1,5 +1,5 @@
 # pymssql-utils
-A lightweight module that wraps and extends the [pymssql](https://github.com/pymssql/pymssql) library.
+A lightweight module that wraps and extends the _[pymssql](https://github.com/pymssql/pymssql)_ library.
 
 The aim of this module is to make it easier to use _pymssql_ by:
  * Reducing the amount of boilerplate code needed, and being fully type hinted.
@@ -24,7 +24,8 @@ Please raise any suggestions or issues via GitHub.
 ## Installation
 
 This module can be installed via pip: `pip install pymssql-utils`.
-This module requires Python >= 3 AND Pip >= 19.3
+
+This module requires `Python >= 3.6` and `Pip >= 19.3`
 
 ## Quick Start  (TODO)
 
@@ -41,10 +42,11 @@ os.environ["DB_NAME"] = "MASTER"
 
 ### Why _pymssql_ when Microsoft officially recommends _pyodbc_ (opinion)?
 
-ODBC drivers add an extra layer between Python and SQL Server
-which can introduce issues that outway the benefits of pyodbc.
-The drivers have various levels of support on differeing linux distributions,
-and if you develop in containers or require to run the same code on various platforms
-you can run into issues. There are other minor reasons that to prefer _pymssql_, e.g. _pymssql's_
-parameter subsitution is done client-side allowing better visibiltiy on what the server is actually running.
-And _pymssql_ has better support for MSSQL specific data types such as Datetimeoffset.
+The main difference between _pyodbc_ and _pymssql_ is the drivers they use.
+The ODBC are newer and have various levels of support on differing linux distributions,
+and if you develop for containers or distribute code onto different platforms
+you can run into ODBC driver-related issues that FreeTDS tends to not have.
+
+There are other minor reasons someone might prefer _pymssql_, e.g.:
+ * _pymssql's_ parameter subsitution is done client-side improving operation visibility.
+ * _pymssql_ also has support for MSSQL specific data types such as Datetimeoffset.

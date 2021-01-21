@@ -15,7 +15,7 @@ from typing import (
 
 import pymssql as sql
 
-from .databaseresult import DatabaseResult, DatabaseError
+from .databaseresult import DatabaseResult
 from .helpers import SQLParameters
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,6 @@ def execute(
     """
     try:
         return _execute(
-            "execute",
             operation,
             parameters,
             commit=True,
@@ -68,14 +67,9 @@ def execute(
         if raise_errors:
             raise err
         return DatabaseResult(
-            **{
-                "ok": False,
-                "command": "execute",
-                "error": DatabaseError(
-                    name=type(err).__name__,
-                    message=str(err.args[1] if len(err.args) >= 2 else err),
-                ),
-            }
+            ok=False,
+            execution_args=("commit", "fetch") if fetch else ("commit",),
+            error=err,
         )
 
 
@@ -95,7 +89,6 @@ def execute_many(
     """
     try:
         return _execute(
-            "execute_many",
             operation,
             parameters,
             commit=True,
@@ -105,16 +98,7 @@ def execute_many(
     except sql.Error as err:
         if raise_errors:
             raise err
-        return DatabaseResult(
-            **{
-                "ok": False,
-                "command": "execute_many",
-                "error": DatabaseError(
-                    name=type(err).__name__,
-                    message=str(err.args[1] if len(err.args) >= 2 else err),
-                ),
-            }
-        )
+        return DatabaseResult(ok=False, execution_args=("commit", "many"), error=err)
 
 
 def query(
@@ -134,7 +118,6 @@ def query(
     """
     try:
         return _execute(
-            "query",
             operation,
             parameters,
             fetch=True,
@@ -143,20 +126,10 @@ def query(
     except sql.Error as err:
         if raise_errors:
             raise err
-        return DatabaseResult(
-            **{
-                "ok": False,
-                "command": "query",
-                "error": DatabaseError(
-                    name=type(err).__name__,
-                    message=str(err.args[1] if len(err.args) >= 2 else err),
-                ),
-            }
-        )
+        return DatabaseResult(ok=False, execution_args=("fetch",), error=err)
 
 
 def _execute(
-    command: str,
     operation: str,
     parameters: Union[Tuple[Any, ...], List[Tuple[Any, ...]]] = None,
     commit: bool = False,
@@ -176,6 +149,11 @@ def _execute(
     :param many: Whether to use executemany instead of execute, default False
     :return: DatabaseResult class
     """
+    commands = [
+        command
+        for command, arg in [("commit", commit), ("fetch", fetch), ("many", many)]
+        if arg
+    ]
     with sql.connect(as_dict=True, **kwargs) as cnxn:
         with cnxn.cursor() as cur:
             if many:
@@ -183,17 +161,12 @@ def _execute(
             else:
                 cur.execute(operation, parameters)
 
-            if fetch:
-                out = DatabaseResult(
-                    **{"data": cur.fetchall(), "ok": True, "command": command}
-                )
-            else:
-                out = DatabaseResult(**{"ok": True, "command": command})
+            data = cur.fetchall() if fetch else None
 
         if commit:
             cnxn.commit()
 
-        return out
+    return DatabaseResult(data=data, ok=True, execution_args=tuple(commands))
 
 
 def substitute_parameters(operation: str, parameters: SQLParameters) -> str:
