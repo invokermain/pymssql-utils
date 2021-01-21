@@ -1,4 +1,4 @@
-# pymssql-utils
+# pymssql-utils (ALPHA)
 A lightweight module that wraps and extends the [pymssql](https://github.com/pymssql/pymssql) library.
 
 The aim of this module is to make it easier to use _pymssql_ by:
