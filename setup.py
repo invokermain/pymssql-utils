@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pymssql-utils",
-    version="0.0.3",
+    version="0.0.4",
     description="A lightweight module that wraps and extends the PyMSSQL library.",
     long_description=(pathlib.Path(__file__).parent / "README.md").read_text(),
     long_description_content_type="text/markdown",
@@ -23,5 +23,5 @@ setup(
     packages=find_packages(),
     python_requires=">=3.6",
     include_package_data=True,
-    install_requires=["pymssql==2.1.*", "python-dateutil==2.8.*"],
+    install_requires=["pymssql==2.1.*", "python-dateutil==2.8.*", "orjson==3.4.*"],
 )

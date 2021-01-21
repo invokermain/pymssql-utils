@@ -1,4 +1,5 @@
 from datetime import date, time, datetime
+from orsjon import loads
 
 import pytest
 
@@ -72,7 +73,6 @@ def test_query(monkeypatch, mock_pymssql_connect):
     # to test it is a Row class that can be accessed by col name or index value
     assert isinstance(result.data[0], Row)
     assert result.data[0]["Col_Date"]
-    assert result.data[0][0]
 
 
 def test_data_parsing(monkeypatch, mock_pymssql_connect):
@@ -102,20 +102,18 @@ def test_data_parsing(monkeypatch, mock_pymssql_connect):
     assert isinstance(data["Col_Datetimeoffset5"], datetime)
     assert isinstance(data["Col_Datetimeoffset6"], datetime)
     assert isinstance(data["Col_Datetimeoffset7"], datetime)
+    assert isinstance(data["Col_Numeric"], float)
 
 
-def test_data_unpackable(monkeypatch, mock_pymssql_connect):
+def test_data_serializable(monkeypatch, mock_pymssql_connect):
     monkeypatch.setenv("DB_NAME", "database")
     monkeypatch.setenv("DB_SERVER", "server")
     monkeypatch.setenv("DB_USER", "user")
     monkeypatch.setenv("DB_PASSWORD", "password")
 
-    data = sql.query("test query").data[0]
+    result = sql.query("test query")
 
-    def foo(cols, items, **kwargs):
-        for e, (key, value) in enumerate(kwargs.items()):
-            if cols[e] != key or items[e] != value:
-                return False
-        return True
+    assert isinstance(result.to_json(), str)
+    assert isinstance(result.to_json(), bytes)
 
-    assert foo(data.cols, [x for x in data], **data)
+    assert result.data == loads(result.to_json())

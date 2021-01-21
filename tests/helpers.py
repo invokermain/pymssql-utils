@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 import datetime as dt
+from decimal import Decimal
 
 
 class MockCursor:
@@ -32,6 +33,7 @@ class MockCursor:
                 "Col_Datetimeoffset5": "2021-01-18 22:07:47.11285 +00:00",
                 "Col_Datetimeoffset6": "2021-01-18 22:07:47.112848 +00:00",
                 "Col_Datetimeoffset7": "2021-01-18 22:07:47.1128480 +00:00",
+                "Col_Numeric": Decimal("1.250"),
             }
         ]
 

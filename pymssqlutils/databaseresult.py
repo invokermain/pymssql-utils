@@ -1,14 +1,13 @@
-import datetime as dt
+from datetime import date, time, datetime, timedelta, timezone
 import logging
 import re
 import struct
-from collections import namedtuple
-from typing import Dict, Any, List, NamedTuple, Union, Tuple, Sized
+from decimal import Decimal
+from typing import Dict, Any, List, Union, Optional
 
 import pymssql as sql
 from dateutil.parser import isoparse
-
-from pymssqlutils.helpers import UserTuple
+from orjson import dumps
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,7 @@ def _clean(item: Any) -> Any:
         # handle various date/time returns that pymssql doesn't handle
         match = _is_date(item)
         if match:
-            return dt.date(int(match[1]), int(match[2]), int(match[3]))
+            return date(int(match[1]), int(match[2]), int(match[3]))
 
         match = _is_time(item)
         if match:
@@ -63,9 +62,13 @@ def _clean(item: Any) -> Any:
     if isinstance(item, bytes):
         # fix for certain versions of FreeTDS driver returning Datetimeoffset as bytes
         microseconds, days, tz, _ = struct.unpack("QIhH", item)
-        return dt.datetime(
-            1900, 1, 1, 0, 0, 0, tzinfo=dt.timezone(dt.timedelta(minutes=tz))
-        ) + dt.timedelta(days=days, minutes=tz, microseconds=microseconds / 10)
+        return datetime(
+            1900, 1, 1, 0, 0, 0, tzinfo=timezone(timedelta(minutes=tz))
+        ) + timedelta(days=days, minutes=tz, microseconds=microseconds / 10)
+
+    if isinstance(item, Decimal):
+        return float(item)
+
     return item
 
 
@@ -82,35 +85,11 @@ class DatabaseError:
         self.message = message
 
 
-class Row(UserTuple):
-    def __init__(self, cols: Tuple[str, ...], items: Tuple[str, ...]):
-        if len(cols) != len(items):
-            raise ValueError("Columns must be the same length as items")
-        self.cols = cols
-        super().__init__(tuple(items))
-
-    def __getitem__(self, item: Union[int, str]):
-        if isinstance(item, str):
-            try:
-                return self.data[self.cols.index(item)]
-            except KeyError:
-                raise ValueError(
-                    f"{item} is not in the columns of the row: {self.cols}"
-                )
-        return self.data[item]
-
-    def keys(self):
-        return self.cols
-
-    def items(self):
-        return self.data
-
-
 class DatabaseResult:
     ok: bool
     command: str
     columns: List[str] = None
-    data: List[Row] = None
+    data: List[Dict[str, Optional[Union[str, int, float, time, date, datetime]]]] = None
     error: DatabaseError = None
 
     def __init__(
@@ -125,13 +104,8 @@ class DatabaseResult:
         self.error = error
 
         if data:
-            self.data = [
-                Row(
-                    tuple(row.keys()),
-                    tuple([_clean(row_value) for row_value in row.values()]),
-                )
-                for row in data
-            ]
+            self.columns = [*data[0]]
+            self.data = [{k: _clean(v) for k, v in row.items()} for row in data]
 
     def write_error_to_logger(self, name: str) -> None:
         logger.error(
@@ -156,13 +130,24 @@ class DatabaseResult:
         the DataFrame initiation method.
         :return: a DataFrame
         """
+        if not self.data:
+            raise ValueError("DatabaseResult class has no data to cast to DataFrame")
+
         # noinspection PyUnresolvedReferences
         try:
             from pandas import DataFrame
         except ImportError:
             raise RuntimeError("Pandas must be installed to use this method")
 
-        if not self.data:
-            raise ValueError("DatabaseResult class has no data to cast to DataFrame")
-
         return DataFrame(data=self.data, *args, **kwargs)
+
+    def to_json(self, as_bytes=False) -> Union[bytes, str]:
+        """
+        returns the serialized data as a JSON format string.
+        :params as_bytes: bool, if True returns the JSON object as UTF-8 encoded bytes instead of string
+        :return: Union[bytes, str]
+        """
+        if as_bytes:
+            return dumps(self.data)
+        else:
+            return dumps(self.data).decode("UTF-8")
