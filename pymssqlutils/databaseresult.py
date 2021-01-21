@@ -3,10 +3,12 @@ import logging
 import re
 import struct
 from collections import namedtuple
-from typing import Dict, Any, List, NamedTuple, Union
+from typing import Dict, Any, List, NamedTuple, Union, Tuple, Sized
 
 import pymssql as sql
 from dateutil.parser import isoparse
+
+from pymssqlutils.helpers import UserTuple
 
 logger = logging.getLogger(__name__)
 
@@ -80,10 +82,29 @@ class DatabaseError:
         self.message = message
 
 
+class Row(UserTuple):
+    def __init__(self, cols: Tuple[str, ...], items: Tuple[str, ...]):
+        if len(cols) != len(items):
+            raise ValueError("Columns must be the same length as items")
+        self.cols = cols
+        super().__init__(tuple(items))
+
+    def __getitem__(self, item: Union[int, str]):
+        if isinstance(item, str):
+            try:
+                return self.data[self.cols.index(item)]
+            except KeyError:
+                raise ValueError(
+                    f"{item} is not in the columns of the row: {self.cols}"
+                )
+        return self.data[item]
+
+
 class DatabaseResult:
     ok: bool
     command: str
-    data: List[NamedTuple] = None
+    columns: List[str] = None
+    data: List[Row] = None
     error: DatabaseError = None
 
     def __init__(
@@ -98,9 +119,12 @@ class DatabaseResult:
         self.error = error
 
         if data:
-            Row = namedtuple("Row", data[0].keys())
             self.data = [
-                Row(*[_clean(row_value) for row_value in row.values()]) for row in data
+                Row(
+                    tuple(row.keys()),
+                    tuple([_clean(row_value) for row_value in row.values()]),
+                )
+                for row in data
             ]
 
     def write_error_to_logger(self, name: str) -> None:
