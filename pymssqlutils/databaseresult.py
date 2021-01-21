@@ -1,9 +1,9 @@
-from datetime import date, time, datetime, timedelta, timezone
 import logging
 import re
 import struct
+from datetime import date, time, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Dict, Any, List, Union, Optional
+from typing import Dict, Any, List, Union, Optional, Tuple
 
 import pymssql as sql
 from dateutil.parser import isoparse
@@ -72,57 +72,65 @@ def _clean(item: Any) -> Any:
     return item
 
 
-class DatabaseError:
-    name: str
-    message: str
-
-    def __init__(self, name: str, message: Union[str, bytes]):
-        self.name = name
-
-        if isinstance(message, bytes):
-            message = message.decode("utf-8")
-
-        self.message = message
+class DatabaseError(Exception):
+    pass
 
 
 class DatabaseResult:
     ok: bool
-    command: str
+    execution_args: Tuple[str, ...]
     columns: List[str] = None
     data: List[Dict[str, Optional[Union[str, int, float, time, date, datetime]]]] = None
-    error: DatabaseError = None
+    error: sql.Error = None
 
     def __init__(
         self,
         ok: bool,
-        command: str,
+        execution_args: Tuple[str, ...],
         data: List[Dict] = None,
-        error: DatabaseError = None,
+        error: sql.Error = None,
     ):
         self.ok = ok
-        self.command = command
-        self.error = error
+        self.execution_args = execution_args
 
-        if data:
-            self.columns = [*data[0]]
-            self.data = [{k: _clean(v) for k, v in row.items()} for row in data]
+        if error:
+            self.error = error
+        else:
+            if data:
+                self.columns = [*data[0]]
+                self.data = [{k: _clean(v) for k, v in row.items()} for row in data]
+            elif "fetch" in self.execution_args:
+                self.data = []
+                self.columns = []
 
-    def write_error_to_logger(self, name: str) -> None:
+    def write_error_to_logger(self, name: str = "unknown") -> None:
+        """
+        Writes the error to logger.
+
+        :param name: str, an optional name to show in the error string.
+        :return: None
+        """
+        if self.ok:
+            raise ValueError("This execution did not error")
+        error_text = str(
+            self.error.args[1] if len(self.error.args) >= 2 else self.error
+        )
         logger.error(
-            f"DatabaseResult Error on {self.command} ({name})"
-            f": <{self.error.name}> {self.error.message}"
+            f"DatabaseResult Error (<{name} | {self.execution_args}>)"
+            f": <{type(self.error).__name__}> {error_text}"
         )
 
-    def raise_error(self, name: str = None) -> None:
+    def raise_error(self, name: str = "unknown") -> None:
         """
         Raises a pymssql DatabaseError with an optional name to help identify the operation.
         :param name: str, an optional name to show in the error string.
         :return: None
         """
-        name = f" ({name})" if name else ""
-        raise sql.DatabaseError(
-            f"{self.command}{name}: <{self.error.name}> {self.error.message}"
-        )
+        if self.ok:
+            raise ValueError("This execution did not error")
+        raise DatabaseError(
+            f"<{name} | {self.execution_args}> bad execution"
+        ) from self.error
 
     def to_dataframe(self, *args, **kwargs):
         """
@@ -130,7 +138,7 @@ class DatabaseResult:
         the DataFrame initiation method.
         :return: a DataFrame
         """
-        if not self.data:
+        if self.data is None:
             raise ValueError("DatabaseResult class has no data to cast to DataFrame")
 
         # noinspection PyUnresolvedReferences

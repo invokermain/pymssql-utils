@@ -1,14 +1,16 @@
 from datetime import date, time, datetime
 from typing import Dict
 
+import pymssql
 import pytest
 
 import pymssqlutils as sql
+from pymssqlutils.methods import with_conn_details
 from pymssqlutils import DatabaseResult
 
 
 def test_with_conn_details_from_args():
-    conn_details = sql.with_conn_details(
+    conn_details = with_conn_details(
         {
             "database": "database",
             "server": "server",
@@ -27,7 +29,7 @@ def test_with_conn_details_from_env(monkeypatch):
     monkeypatch.setenv("DB_SERVER", "server")
     monkeypatch.setenv("DB_USER", "user")
     monkeypatch.setenv("DB_PASSWORD", "password")
-    conn_details = sql.with_conn_details({})
+    conn_details = with_conn_details({})
     assert conn_details["database"] == "database"
     assert conn_details["server"] == "server"
     assert conn_details["user"] == "user"
@@ -36,7 +38,7 @@ def test_with_conn_details_from_env(monkeypatch):
 
 def test_build_conn_details_errors():
     with pytest.raises(EnvironmentError):
-        sql.with_conn_details({})
+        with_conn_details({})
 
 
 def test_execute_and_execute_many(monkeypatch, mock_pymssql_connect):
@@ -49,13 +51,13 @@ def test_execute_and_execute_many(monkeypatch, mock_pymssql_connect):
     assert isinstance(result, DatabaseResult)
     assert result.data is None
     assert result.ok
-    assert result.command == "execute"
+    assert "commit" in result.execution_args
 
     result = sql.execute_many("test query", [(1,), (2,)])
     assert isinstance(result, DatabaseResult)
     assert result.data is None
     assert result.ok
-    assert result.command == "execute_many"
+    assert "commit" in result.execution_args and "many" in result.execution_args
 
 
 def test_query(monkeypatch, mock_pymssql_connect):
@@ -68,7 +70,7 @@ def test_query(monkeypatch, mock_pymssql_connect):
     assert isinstance(result, DatabaseResult)
     assert result.data
     assert result.ok
-    assert result.command == "query"
+    assert "fetch" in result.execution_args
 
     assert isinstance(result.data[0], Dict)
     assert result.data[0]["Col_Date"]
@@ -114,3 +116,41 @@ def test_data_serializable(monkeypatch, mock_pymssql_connect):
 
     assert isinstance(result.to_json(), str)
     assert isinstance(result.to_json(as_bytes=True), bytes)
+
+
+def test_result_error_handling_on_ignore(monkeypatch):
+    # this will throw a pymssql.OperationalError
+    result = sql.query(
+        "test query",
+        user="junk",
+        server="doesnotexist",
+        password="bad",
+        raise_errors=False,
+    )
+    assert result.ok is False
+    assert isinstance(result.error, pymssql.OperationalError)
+    assert result.data is None
+
+
+def test_result_error_handling_on_ignore_and_raise(monkeypatch):
+    # this will throw a pymssql.OperationalError
+    result = sql.query(
+        "test query",
+        user="junk",
+        server="doesnotexist",
+        password="bad",
+        raise_errors=False,
+    )
+    with pytest.raises(sql.DatabaseError):
+        result.raise_error()
+
+
+def test_result_error_handling_on_raise(monkeypatch):
+    # this will throw a pymssql.OperationalError
+    with pytest.raises(pymssql.OperationalError):
+        sql.query(
+            "test query",
+            user="junk",
+            server="doesnotexist",
+            password="bad",
+        )
