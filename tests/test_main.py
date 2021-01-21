@@ -102,3 +102,20 @@ def test_data_parsing(monkeypatch, mock_pymssql_connect):
     assert isinstance(data["Col_Datetimeoffset5"], datetime)
     assert isinstance(data["Col_Datetimeoffset6"], datetime)
     assert isinstance(data["Col_Datetimeoffset7"], datetime)
+
+
+def test_data_unpackable(monkeypatch, mock_pymssql_connect):
+    monkeypatch.setenv("DB_NAME", "database")
+    monkeypatch.setenv("DB_SERVER", "server")
+    monkeypatch.setenv("DB_USER", "user")
+    monkeypatch.setenv("DB_PASSWORD", "password")
+
+    data = sql.query("test query").data[0]
+
+    def foo(cols, items, **kwargs):
+        for e, (key, value) in enumerate(kwargs.items()):
+            if cols[e] != key or items[e] != value:
+                return False
+        return True
+
+    assert foo(data.cols, [x for x in data], **data)

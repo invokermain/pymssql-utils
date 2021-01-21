@@ -13,6 +13,9 @@ class UserTuple:
                 raise ValueError(f"inittuple {inittuple} is not a tuple")
             self.data = inittuple
 
+    def __iter__(self):
+        return iter(self.data)
+
     def __repr__(self):
         return repr(self.data)
 

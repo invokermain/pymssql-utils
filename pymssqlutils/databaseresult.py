@@ -99,6 +99,12 @@ class Row(UserTuple):
                 )
         return self.data[item]
 
+    def keys(self):
+        return self.cols
+
+    def items(self):
+        return self.data
+
 
 class DatabaseResult:
     ok: bool

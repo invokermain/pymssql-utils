@@ -4,7 +4,8 @@ A lightweight module that wraps and extends the [pymssql](https://github.com/pym
 The aim of this module is to make it easier to use _pymssql_ by:
  * Reducing the amount of boilerplate code needed.
  * Returning a helpful `DatabaseResult` class for each execution.
- * Storing each row of data as a `Row` class which is a tuple that allows simple access via column names as well.
+ * Represents each row of data as a `Row` class which is tuple-like,
+   but can index via column names and supports the **mapping syntax.
  * Being fully type hinted.  
  * Parsing various SQL Types to native Python types that Python misses.
  * Making it easier to serialise your data.
