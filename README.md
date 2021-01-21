@@ -4,6 +4,7 @@ A lightweight module that wraps and extends the [pymssql](https://github.com/pym
 The aim of this module is to make it easier to use _pymssql_ by:
  * Reducing the amount of boilerplate code needed.
  * Returning a helpful `DatabaseResult` class for each execution.
+ * Storing each row of data as a `Row` class which is a tuple that allows simple access via column names as well.
  * Being fully type hinted.  
  * Parsing various SQL Types to native Python types that Python misses.
  * Making it easier to serialise your data.
@@ -35,9 +36,12 @@ os.environ["DB_NAME"] = "MASTER"
 ```
 ## Notes
 
-### Why pymssql when and Microsoft officially recommends pyodbc?
+### Why _pymssql_ when Microsoft officially recommends _pyodbc_ (opinion)?
 
-Simply, ODBC drivers add an extra layer between Python and SQL Server
-which introduce a whole host of obscure issues that I believe outway the current benefits of pyodbc.
-These drivers are badly supported on linux distributions, and if you develop in containers often I believe
-using pymssql will work out of the box across many more distributions seamlessly.
+ODBC drivers add an extra layer between Python and SQL Server
+which can introduce issues that outway the benefits of pyodbc.
+The drivers have various levels of support on differeing linux distributions,
+and if you develop in containers or require to run the same code on various platforms
+you can run into issues. There are other minor reasons that I prefer _pymssql_, e.g. _pymssql's_
+parameter subsitution is done client-side leading to better visibiltiy on what the server is actually running.
+And _pymssql_ (tries to) supports DATETIMEOFFSET SQL type while _pyodbc_ does not.
