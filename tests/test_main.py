@@ -25,10 +25,10 @@ def test_with_conn_details_from_args():
 
 
 def test_with_conn_details_from_env(monkeypatch):
-    monkeypatch.setenv("DB_NAME", "database")
-    monkeypatch.setenv("DB_SERVER", "server")
-    monkeypatch.setenv("DB_USER", "user")
-    monkeypatch.setenv("DB_PASSWORD", "password")
+    monkeypatch.setenv("MSSQL_DATABASE", "database")
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    monkeypatch.setenv("MSSQL_USER", "user")
+    monkeypatch.setenv("MSSQL_PASSWORD", "password")
     conn_details = with_conn_details({})
     assert conn_details["database"] == "database"
     assert conn_details["server"] == "server"
@@ -36,17 +36,7 @@ def test_with_conn_details_from_env(monkeypatch):
     assert conn_details["password"] == "password"
 
 
-def test_build_conn_details_errors():
-    with pytest.raises(EnvironmentError):
-        with_conn_details({})
-
-
 def test_execute_and_execute_many(monkeypatch, mock_pymssql_connect):
-    monkeypatch.setenv("DB_NAME", "database")
-    monkeypatch.setenv("DB_SERVER", "server")
-    monkeypatch.setenv("DB_USER", "user")
-    monkeypatch.setenv("DB_PASSWORD", "password")
-
     result = sql.execute("test query")
     assert isinstance(result, DatabaseResult)
     assert result.data is None
@@ -61,11 +51,6 @@ def test_execute_and_execute_many(monkeypatch, mock_pymssql_connect):
 
 
 def test_query(monkeypatch, mock_pymssql_connect):
-    monkeypatch.setenv("DB_NAME", "database")
-    monkeypatch.setenv("DB_SERVER", "server")
-    monkeypatch.setenv("DB_USER", "user")
-    monkeypatch.setenv("DB_PASSWORD", "password")
-
     result = sql.query("test query")
     assert isinstance(result, DatabaseResult)
     assert result.data
@@ -77,11 +62,6 @@ def test_query(monkeypatch, mock_pymssql_connect):
 
 
 def test_data_parsing(monkeypatch, mock_pymssql_connect):
-    monkeypatch.setenv("DB_NAME", "database")
-    monkeypatch.setenv("DB_SERVER", "server")
-    monkeypatch.setenv("DB_USER", "user")
-    monkeypatch.setenv("DB_PASSWORD", "password")
-
     data = sql.query("test query").data[0]
 
     assert isinstance(data["Col_Date"], date)
@@ -107,11 +87,6 @@ def test_data_parsing(monkeypatch, mock_pymssql_connect):
 
 
 def test_data_serializable(monkeypatch, mock_pymssql_connect):
-    monkeypatch.setenv("DB_NAME", "database")
-    monkeypatch.setenv("DB_SERVER", "server")
-    monkeypatch.setenv("DB_USER", "user")
-    monkeypatch.setenv("DB_PASSWORD", "password")
-
     result = sql.query("test query")
 
     assert isinstance(result.to_json(), str)

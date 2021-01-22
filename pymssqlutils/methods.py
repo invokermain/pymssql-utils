@@ -24,18 +24,11 @@ logger = logging.getLogger(__name__)
 def with_conn_details(kwargs: Dict) -> Dict:
     if not kwargs:
         kwargs = {}
-    try:
-        kwargs["database"] = kwargs.get("database") or os.environ.get(
-            "DB_NAME", "MASTER"
-        )
-        kwargs["server"] = kwargs.get("server") or os.environ["DB_SERVER"]
-        kwargs["user"] = kwargs.get("user") or os.environ["DB_USER"]
-        kwargs["password"] = kwargs.get("password") or os.environ["DB_PASSWORD"]
-        return kwargs
-    except KeyError:
-        raise EnvironmentError(
-            "Please specify the connection details as parameters or in the environment."
-        )
+    kwargs["database"] = kwargs.get("database", os.environ.get("MSSQL_DATABASE"))
+    kwargs["server"] = kwargs.get("server", os.environ.get("MSSQL_SERVER"))
+    kwargs["user"] = kwargs.get("user", os.environ.get("MSSQL_USER"))
+    kwargs["password"] = kwargs.get("password", os.environ.get("MSSQL_PASSWORD"))
+    return kwargs
 
 
 def execute(
