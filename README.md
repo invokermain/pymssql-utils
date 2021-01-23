@@ -12,7 +12,7 @@ This module's features:
 * Makes it easy to serialize your data with
   [_orjson_](https://github.com/ijl/orjson).
 * Provides you with simple and clear options for error handling.
-* Proves utility functions,e.g. for building dynamic SQL queries.
+* Extra utility functions, e.g. for building dynamic SQL queries.
 * Fixing various edge case bugs that arise when using _pymssql_.
 * Fully type hinted.
 
@@ -62,7 +62,7 @@ There are two ways of specifying the connection parameters to the SQL Server:
 1. Passing the required parameters
    ([see pymssql docs](https://pymssql.readthedocs.io/en/stable/ref/pymssql.html#pymssql.connect))
    into each of function calls (_query, execute & execute_many_) like in the quickstart example above.
-   All kwargs passed to this methods are passed on to the `pymssql.connection()`.
+   All kwargs passed to these methods are passed on to the `pymssql.connection()`.
 2. Specify the connection parameters in the environment like the example below, note that parameters given
    explicitly will take precedence over connection parameters specified in the environment.
    
@@ -78,24 +78,30 @@ result = sql.execute("INSERT INTO mytable VALUES (1, 'test)")
 ```
 
 ### Executing SQL
-This library provides three functions for executing SQL code:
-`query`, `execute` & `execute_many`. These functions call _pymssql's_
-`execute` or `executemany` functions with varying behaviour to fetching
+This library provides four functions for executing SQL code:
+`query`, `execute`, `execute_many` & `execute_batched`.
+These functions call _pymssql's_ `execute` or `executemany` functions with varying behaviour to fetching
 result data or committing the transaction, see table below.
 
-| Function      |   Wraps         |   commits     |  fetches     |
-|---------------|-----------------|---------------|--------------|
-| query         | execute         | False         |  True        |
-| execute       | execute         | True          |  Optional    |
-| execute_many  | execute_many    | True          |  False       |
+| Function         | Uses            |   commits     |  fetches     |
+|------------------|-----------------|---------------|--------------|
+| query            | execute         | False         |  True        |
+| execute          | execute         | True          |  Optional    |
+| execute_many     | executemany     | True          |  False       |
+| execute_batched  | execute         | True          |  False       |
 
 Splitting `query` & `execute` into two functions based on whether the execution
-commits or not is intended to make it clearer in your code
-what your SQL execution is doing.
+commits or not is intended to make your code clearer and more explicit.
 
 ### Error handling (TODO)
 
 ### Utility Functions (TODO)
+
+## Testing (TODO)
+
+Must install pytest to run main tests, that mock cursor results.
+To test on_database tests against an MSSQL instance `"TEST_ON_DATABASE"` must be set in the environment
+as well as any of the normal env variables to connect to the MSSQL server, `pytest-dotenv` can help with this.
 
 ## Notes
 
@@ -108,4 +114,4 @@ you can run into ODBC driver-related issues that FreeTDS tends to not have.
 
 There are other minor reasons someone might prefer _pymssql_, e.g.:
  * _pymssql's_ parameter subsitution is done client-side improving operation visibility.
- * _pymssql_ also has support for MSSQL specific data types such as Datetimeoffset.
+ * _pymssql_ also has support for MSSQL specific data types such as `Datetimeoffset`.

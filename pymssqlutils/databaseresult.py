@@ -9,6 +9,8 @@ import pymssql as sql
 from dateutil.parser import isoparse
 from orjson import dumps
 
+from pymssqlutils.helpers import SQLParameter
+
 logger = logging.getLogger(__name__)
 
 date_regex = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
@@ -80,7 +82,7 @@ class DatabaseResult:
     ok: bool
     execution_args: Tuple[str, ...]
     columns: List[str] = None
-    data: List[Dict[str, Optional[Union[str, int, float, time, date, datetime]]]] = None
+    data: List[Dict[str, SQLParameter]] = None
     error: sql.Error = None
 
     def __init__(

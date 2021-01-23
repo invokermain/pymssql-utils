@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 import os
 from decimal import Decimal
+from itertools import islice
 from typing import (
     Dict,
     Optional,
@@ -88,6 +89,49 @@ def execute_many(
             many=True,
             **with_conn_details(kwargs),
         )
+    except sql.Error as err:
+        if raise_errors:
+            raise err
+        return DatabaseResult(ok=False, execution_args=("commit", "many"), error=err)
+
+
+def execute_batched(
+    operation: str,
+    parameters: List[SQLParameters],
+    batch_size: int = 1000,
+    raise_errors: bool = True,
+    **kwargs,
+) -> DatabaseResult:
+    """
+    This method batches multiple operations into one operation to improve performance, recommended if you
+    are executing 100+ small operations in a go.
+
+    Wrapper of pymssql's cursor.executemany() which COMMITS the transactions, and does not return the results.
+
+    **kwargs are passed through to the pymssql.connect() method.
+
+    :param operation: str, the SQL Operation to execute.
+    :param parameters: parameters to substitute into the operations.
+                       Expects a list of single values, tuples or dictionaries.
+    :param batch_size: int, the maximum number of concatenations
+    :param raise_errors: if True raises errors, else DatabaseResult class will contain the error details.
+    :return: a DatabaseResult class.
+    """
+
+    batched_operations = [
+        "\n;".join(substitute_parameters(operation, params))
+        for batch in islice(parameters, batch_size)
+        for params in batch
+    ]
+
+    try:
+        with sql.connect(as_dict=True, **kwargs) as cnxn:
+            with cnxn.cursor() as cur:
+                for batch in batched_operations:
+                    cur.execute(batch)
+            cnxn.commit()
+
+        return DatabaseResult(ok=True, execution_args=("commit", "many"))
     except sql.Error as err:
         if raise_errors:
             raise err

@@ -3,10 +3,11 @@ from typing import Dict
 
 import pymssql
 import pytest
+from pandas import DataFrame
 
 import pymssqlutils as sql
-from pymssqlutils.methods import with_conn_details
 from pymssqlutils import DatabaseResult
+from pymssqlutils.methods import with_conn_details
 
 
 def test_with_conn_details_from_args():
@@ -86,14 +87,14 @@ def test_data_parsing(monkeypatch, mock_pymssql_connect):
     assert isinstance(data["Col_Numeric"], float)
 
 
-def test_data_serializable(monkeypatch, mock_pymssql_connect):
+def test_data_serializable(mock_pymssql_connect):
     result = sql.query("test query")
 
     assert isinstance(result.to_json(), str)
     assert isinstance(result.to_json(as_bytes=True), bytes)
 
 
-def test_result_error_handling_on_ignore(monkeypatch):
+def test_result_error_handling_on_ignore():
     # this will throw a pymssql.OperationalError
     result = sql.query(
         "test query",
@@ -129,3 +130,12 @@ def test_result_error_handling_on_raise(monkeypatch):
             server="doesnotexist",
             password="bad",
         )
+
+
+def test_cast_to_dataframe(mock_pymssql_connect):
+    pandas = pytest.importorskip("pandas")
+    result = sql.query("test query")
+    df = result.to_dataframe()
+
+    assert isinstance(df, DataFrame)
+    assert df.columns.tolist() == result.columns
