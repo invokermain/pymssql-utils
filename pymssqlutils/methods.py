@@ -118,16 +118,18 @@ def execute_batched(
     :return: a DatabaseResult class.
     """
 
-    batched_operations = [
-        "\n;".join(substitute_parameters(operation, params))
-        for batch in islice(parameters, batch_size)
-        for params in batch
+    batched = [
+        "\n;".join(
+            substitute_parameters(operation, params)
+            for params in parameters[i : i + batch_size]
+        )
+        for i in range(0, len(parameters), batch_size)
     ]
 
     try:
-        with sql.connect(as_dict=True, **kwargs) as cnxn:
+        with sql.connect(as_dict=True, **with_conn_details(kwargs)) as cnxn:
             with cnxn.cursor() as cur:
-                for batch in batched_operations:
+                for batch in batched:
                     cur.execute(batch)
             cnxn.commit()
 

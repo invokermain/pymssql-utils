@@ -82,4 +82,6 @@ def test_execute_many():
 
 @pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
 def test_execute_batched():
-    sql.execute_batched("SELECT %s val", [(val,) for val in range(1000)])
+    sql.execute_batched(
+        "SELECT %s a, %s b, %s c", [(val, val + 1, val + 2) for val in range(1000)]
+    )
