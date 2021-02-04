@@ -8,6 +8,7 @@ from typing import (
     Union,
     Iterable,
     Mapping,
+    Any,
 )
 
 import pymssql as sql
@@ -271,7 +272,7 @@ def to_sql_list(listlike: Iterable) -> str:
 
 
 def model_to_values(
-    model: Mapping,
+    model: Any,
     prepend: List[Tuple[str, str]] = None,
     append: List[Tuple[str, str]] = None,
 ) -> str:
