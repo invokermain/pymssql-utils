@@ -284,14 +284,14 @@ def model_to_values(
     append: List[Tuple[str, str]] = None,
 ) -> str:
     """
-    Transforms a Dict or Mapping into a string of the form: '(attr1, attr2, ...) VALUES (val1, val2, ...)'.
+    Transforms a Dict or Mapping into a string of the form: '([attr1], [attr2], ...) VALUES (val1, val2, ...)'.
     Intended to be used when creating dynamic SQL INSERT statements.
 
     Prepend and append can be used to add a SQL column with a static or variable value
     at the beginning or end of the values list.
 
     e.g. passing prepend = [('prependedColumn', '@prependedColumn')] would return a string of the form:
-    '(prependedColumn, attr1, attr2, ...) VALUES (@prependedColumn, val1, val2, ...)'
+    '([prependedColumn], [attr1], [attr2], ...) VALUES (@prependedColumn, val1, val2, ...)'
 
     :param model: a Dictionary or anything that implements the __dict__ method (e.g. a Pydantic Model)
     :param prepend: prepend a variable number of columns to the beginning of the values statement.
@@ -312,6 +312,6 @@ def model_to_values(
         keys.extend(x[0] for x in append)
         values.extend(x[1] for x in append)
 
-    column_names = "(" + ", ".join(keys) + ")"
+    column_names = "(" + ", ".join(f"[{key}]" for key in keys) + ")"
     properties = to_sql_list(values)
     return f"{column_names} VALUES {properties}"

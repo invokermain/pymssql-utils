@@ -318,7 +318,7 @@ def test_dict_model_to_values():
     }
     assert (
         model_to_values(model)
-        == "(text, float, datetime, bool, none) VALUES (N'hello', 1.23, N'2020-06-01T12:30:00-01:00', 1, NULL)"
+        == "([text], [float], [datetime], [bool], [none]) VALUES (N'hello', 1.23, N'2020-06-01T12:30:00-01:00', 1, NULL)"
     )
 
 
@@ -329,7 +329,7 @@ def test_dict_model_to_values_with_prepend():
     }
     assert (
         model_to_values(model, prepend=[("pre1", "0.123"), ("pre2", "@test")])
-        == "(pre1, pre2, text, float) VALUES (N'0.123', N'@test', N'hello', 1.23)"
+        == "([pre1], [pre2], [text], [float]) VALUES (N'0.123', N'@test', N'hello', 1.23)"
     )
 
 
@@ -340,7 +340,7 @@ def test_dict_model_to_values_with_append():
     }
     assert (
         model_to_values(model, append=[("pre1", "0.123"), ("pre2", "@test")])
-        == "(text, float, pre1, pre2) VALUES (N'hello', 1.23, N'0.123', N'@test')"
+        == "([text], [float], [pre1], [pre2]) VALUES (N'hello', 1.23, N'0.123', N'@test')"
     )
 
 
@@ -377,7 +377,7 @@ def test_substitute_parameters_single_none_raises_error():
         substitute_parameters("%s", None)
 
 
-def test_listlike_to_sql_list():
+def test_to_sql_list():
     assert (
         to_sql_list(
             (
