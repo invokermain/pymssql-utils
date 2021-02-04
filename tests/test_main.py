@@ -1,13 +1,14 @@
-from datetime import date, time, datetime
-from typing import Dict
+from datetime import date, time, datetime, timezone, timedelta
 
 import pymssql
 import pytest
 from pandas import DataFrame
+from pytest_mock import MockerFixture
 
 import pymssqlutils as sql
 from pymssqlutils import DatabaseResult
-from pymssqlutils.methods import with_conn_details
+from pymssqlutils.methods import with_conn_details, model_to_values
+from tests.helpers import MockCursor
 
 
 def test_with_conn_details_from_args():
@@ -37,33 +38,190 @@ def test_with_conn_details_from_env(monkeypatch):
     assert conn_details["password"] == "password"
 
 
-def test_execute_and_execute_many(monkeypatch, mock_pymssql_connect):
+def test_execute_single_operations_no_params(mocker: MockerFixture, monkeypatch):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
     result = sql.execute("test query")
+    assert cursor.execute.call_args_list == [(("test query",),)]
     assert isinstance(result, DatabaseResult)
     assert result.data is None
     assert result.ok
-    assert "commit" in result.execution_args
+    assert result.commit
 
-    result = sql.execute_many("test query", [(1,), (2,)])
+
+def test_execute_single_operations_single_params(mocker: MockerFixture, monkeypatch):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
+    result = sql.execute("select %s val", 2)
+    assert cursor.execute.call_args_list == [
+        (("select 2 val",),),
+    ]
     assert isinstance(result, DatabaseResult)
     assert result.data is None
     assert result.ok
-    assert "commit" in result.execution_args and "many" in result.execution_args
+    assert result.commit
 
 
-def test_query(monkeypatch, mock_pymssql_connect):
+def test_execute_single_operations_multiple_params(mocker: MockerFixture, monkeypatch):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
+    result = sql.execute("select %s val", [2, 3, 4])
+    assert cursor.execute.call_args_list == [
+        (("select 2 val",),),
+        (("select 3 val",),),
+        (("select 4 val",),),
+    ]
+    assert isinstance(result, DatabaseResult)
+    assert result.data is None
+    assert result.ok
+    assert result.commit
+
+
+def test_execute_single_operations_multiple_params_batched(
+    mocker: MockerFixture, monkeypatch
+):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
+    result = sql.execute("select %s val", [2, 3, 4, 5], batch_size=2)
+    assert cursor.execute.call_args_list == [
+        (("select 2 val\n;select 3 val",),),
+        (("select 4 val\n;select 5 val",),),
+    ]
+    assert isinstance(result, DatabaseResult)
+    assert result.data is None
+    assert result.ok
+    assert result.commit
+
+
+def test_execute_multiple_operations_no_params(mocker: MockerFixture, monkeypatch):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
+    result = sql.execute(["test query", "second query"])
+    assert cursor.execute.call_args_list == [
+        (("test query",),),
+        (("second query",),),
+    ]
+    assert isinstance(result, DatabaseResult)
+    assert result.data is None
+    assert result.ok
+    assert result.commit
+
+
+def test_execute_multiple_operations_single_param(mocker: MockerFixture, monkeypatch):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
+    result = sql.execute(["select %s val", "select %s val"], 1)
+    assert cursor.execute.call_args_list == [
+        (("select 1 val",),),
+        (("select 1 val",),),
+    ]
+    assert isinstance(result, DatabaseResult)
+    assert result.data is None
+    assert result.ok
+    assert result.commit
+
+
+def test_execute_multiple_operations_single_param_batched(
+    mocker: MockerFixture, monkeypatch
+):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
+    result = sql.execute(["select %s val"] * 4, 1, batch_size=2)
+    assert cursor.execute.call_args_list == [
+        (("select 1 val\n;select 1 val",),),
+        (("select 1 val\n;select 1 val",),),
+    ]
+    assert isinstance(result, DatabaseResult)
+    assert result.data is None
+    assert result.ok
+    assert result.commit
+
+
+def test_execute_multiple_operations_multiple_params(
+    mocker: MockerFixture, monkeypatch
+):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
+    result = sql.execute(["select %s val", "select %s val"], [1, 2])
+    assert cursor.execute.call_args_list == [
+        (("select 1 val",),),
+        (("select 2 val",),),
+    ]
+    assert isinstance(result, DatabaseResult)
+    assert result.data is None
+    assert result.ok
+    assert result.commit
+
+
+def test_execute_multiple_operations_multiple_params_batched(
+    mocker: MockerFixture, monkeypatch
+):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
+    result = sql.execute(
+        ["select %s val1", "select %s val2", "select %s val3", "select %s val4"],
+        [1, 2, 3, 4],
+        batch_size=2,
+    )
+    assert cursor.execute.call_args_list == [
+        (("select 1 val1\n;select 2 val2",),),
+        (("select 3 val3\n;select 4 val4",),),
+    ]
+    assert isinstance(result, DatabaseResult)
+    assert result.data is None
+    assert result.ok
+    assert result.commit
+
+
+def test_query(mocker: MockerFixture, monkeypatch):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
     result = sql.query("test query")
+    assert cursor.execute.call_args_list == [
+        (("test query",),),
+    ]
     assert isinstance(result, DatabaseResult)
-    assert result.data
+    assert result.data is not None
     assert result.ok
-    assert "fetch" in result.execution_args
-
-    assert isinstance(result.data[0], Dict)
-    assert result.data[0]["Col_Date"]
+    assert result.fetch
+    assert not result.commit
 
 
-def test_data_parsing(monkeypatch, mock_pymssql_connect):
-    data = sql.query("test query").data[0]
+def test_data_parsing(monkeypatch):
+    result = DatabaseResult(
+        ok=True, fetch=True, commit=False, data=MockCursor().fetchall(), error=None
+    )
+    data = result.data[0]
 
     assert isinstance(data["Col_Date"], date)
     assert isinstance(data["Col_Time1"], time)
@@ -87,8 +245,10 @@ def test_data_parsing(monkeypatch, mock_pymssql_connect):
     assert isinstance(data["Col_Numeric"], float)
 
 
-def test_data_serializable(mock_pymssql_connect):
-    result = sql.query("test query")
+def test_data_serializable():
+    result = DatabaseResult(
+        ok=True, fetch=True, commit=False, data=MockCursor().fetchall(), error=None
+    )
 
     assert isinstance(result.to_json(), str)
     assert isinstance(result.to_json(as_bytes=True), bytes)
@@ -132,10 +292,47 @@ def test_result_error_handling_on_raise(monkeypatch):
         )
 
 
-def test_cast_to_dataframe(mock_pymssql_connect):
+def test_cast_to_dataframe():
     pandas = pytest.importorskip("pandas")
-    result = sql.query("test query")
+    result = DatabaseResult(
+        ok=True, fetch=True, commit=False, data=MockCursor().fetchall(), error=None
+    )
     df = result.to_dataframe()
 
     assert isinstance(df, DataFrame)
     assert df.columns.tolist() == result.columns
+
+
+def test_dict_model_to_values():
+    model = {
+        "text": "hello",
+        "float": 1.23,
+        "datetime": datetime(2020, 6, 1, 12, 30, tzinfo=timezone(timedelta(hours=-1))),
+        "bool": True,
+    }
+    assert (
+        model_to_values(model)
+        == "(text, float, datetime, bool) VALUES (N'hello', 1.23, N'2020-06-01T12:30:00-01:00', 1)"
+    )
+
+
+def test_dict_model_to_values_with_prepend():
+    model = {
+        "text": "hello",
+        "float": 1.23,
+    }
+    assert (
+        model_to_values(model, prepend=[("pre1", "0.123"), ("pre2", "@test")])
+        == "(pre1, pre2, text, float) VALUES (N'0.123', N'@test', N'hello', 1.23)"
+    )
+
+
+def test_dict_model_to_values_with_append():
+    model = {
+        "text": "hello",
+        "float": 1.23,
+    }
+    assert (
+        model_to_values(model, append=[("pre1", "0.123"), ("pre2", "@test")])
+        == "(text, float, pre1, pre2) VALUES (N'hello', 1.23, N'0.123', N'@test')"
+    )

@@ -1,14 +1,19 @@
-from contextlib import contextmanager
 import datetime as dt
 from decimal import Decimal
 
 
 class MockCursor:
-    def execute(self, *args, **kwargs):
+    def __init__(self):
+        self.executions = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def executemany(self, *args, **kwargs):
-        pass
+    def execute(self, operations, parameters=None):
+        self.executions.append((operations, parameters))
 
     def fetchall(self):
         return [
@@ -41,10 +46,10 @@ class MockCursor:
 class MockConnection:
     def __init__(self, as_dict=False, **kwargs):
         self.as_dict = as_dict
+        self.cursor_ = MockCursor()
 
-    @contextmanager
     def cursor(self):
-        yield MockCursor()
+        return self.cursor
 
     @staticmethod
     def commit():

@@ -13,3 +13,4 @@ def mock_pymssql_connect(monkeypatch):
         yield MockConnection(as_dict=as_dict)
 
     monkeypatch.setattr(pymssql, "connect", mock_connect)
+    monkeypatch.setenv("MSSQL_SERVER", "test_server")

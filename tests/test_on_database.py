@@ -1,9 +1,10 @@
 import os
-from datetime import date, time, datetime
+from datetime import date, time, datetime, timezone, timedelta
 
 import pytest
 
 import pymssqlutils as sql
+from pymssqlutils import model_to_values
 
 SKIP_FILE = not os.environ.get("TEST_ON_DATABASE")
 SKIP_REASON = "TEST_ON_DATABASE is not set in environment"
@@ -77,11 +78,43 @@ def test_execute_with_fetch():
 
 @pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
 def test_execute_many():
-    sql.execute_many("SELECT %s val", [(1,), (2,), (3,)])
+    sql.execute("SELECT %s val", [(1,), (2,), (3,)])
 
 
 @pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
 def test_execute_batched():
-    sql.execute_batched(
-        "SELECT %s a, %s b, %s c", [(val, val + 1, val + 2) for val in range(1000)]
+    sql.execute(
+        "SELECT %s a, %s b, %s c",
+        [(val, val + 1, val + 2) for val in range(1000)],
+        batch_size=500,
     )
+
+
+@pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
+def test_execute_many_operations():
+    result = sql.execute([f"SELECT {val} val" for val in range(1000)], fetch=True)
+    assert result.data[0]["val"] == 999
+
+
+@pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
+def test_datetime_offset_handling():
+    model = {
+        "col1": "hello",
+        "col2": 1.23,
+        "col3": datetime(2020, 6, 1, 12, 30, tzinfo=timezone(timedelta(hours=-1))),
+        "col4": True,
+    }
+    result = sql.execute(
+        [
+            "CREATE TABLE #temp (col1 VARCHAR(100), col2 DECIMAL(6,2), col3 DATETIMEOFFSET, col4 TINYINT)",
+            f"INSERT INTO #temp {model_to_values(model)}",
+            "SELECT * FROM #temp",
+        ],
+        fetch=True,
+    )
+    assert result.data[0]["col1"] == "hello"
+    assert result.data[0]["col2"] == 1.23
+    assert result.data[0]["col3"] == datetime(
+        2020, 6, 1, 12, 30, tzinfo=timezone(timedelta(hours=-1))
+    )
+    assert result.data[0]["col4"] == 1
