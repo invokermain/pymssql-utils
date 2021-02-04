@@ -80,7 +80,8 @@ class DatabaseError(Exception):
 
 class DatabaseResult:
     ok: bool
-    execution_args: Tuple[str, ...]
+    fetch: bool
+    commit: bool
     columns: List[str] = None
     data: List[Dict[str, SQLParameter]] = None
     error: sql.Error = None
@@ -88,12 +89,14 @@ class DatabaseResult:
     def __init__(
         self,
         ok: bool,
-        execution_args: Tuple[str, ...],
+        fetch: bool,
+        commit: bool,
         data: List[Dict] = None,
         error: sql.Error = None,
     ):
         self.ok = ok
-        self.execution_args = execution_args
+        self.fetch = fetch
+        self.commit = commit
 
         if error:
             self.error = error
@@ -101,7 +104,7 @@ class DatabaseResult:
             if data:
                 self.columns = [*data[0]]
                 self.data = [{k: _clean(v) for k, v in row.items()} for row in data]
-            elif "fetch" in self.execution_args:
+            elif self.fetch:
                 self.data = []
                 self.columns = []
 
@@ -118,7 +121,7 @@ class DatabaseResult:
             self.error.args[1] if len(self.error.args) >= 2 else self.error
         )
         logger.error(
-            f"DatabaseResult Error (<{name} | {self.execution_args}>)"
+            f"DatabaseResult Error (<{name}|{self.fetch=},{self.commit=}>)"
             f": <{type(self.error).__name__}> {error_text}"
         )
 
@@ -131,7 +134,7 @@ class DatabaseResult:
         if self.ok:
             raise ValueError("This execution did not error")
         raise DatabaseError(
-            f"<{name} | {self.execution_args}> bad execution"
+            f"<{name}|{self.fetch=},{self.commit=}> bad execution"
         ) from self.error
 
     def to_dataframe(self, *args, **kwargs):
