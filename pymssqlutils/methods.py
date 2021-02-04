@@ -293,25 +293,35 @@ def model_to_values(
     e.g. passing prepend = [('prependedColumn', '@prependedColumn')] would return a string of the form:
     '([prependedColumn], [attr1], [attr2], ...) VALUES (@prependedColumn, val1, val2, ...)'
 
+    Note: prepended and appended columns are not parameter substituted, this can leave your code open to sql injection.
+
     :param model: a Dictionary or anything that implements the __dict__ method (e.g. a Pydantic Model)
     :param prepend: prepend a variable number of columns to the beginning of the values statement.
     :param append: append a variable number of columns to the end of the values statement.
     :return: str
     """
     keys = [x[0] for x in prepend] if prepend else []
-    values = [x[1] for x in prepend] if prepend else []
+    prepend_values = [x[1] for x in prepend] if prepend else []
+    append_values = [x[1] for x in append] if append else []
 
     if isinstance(model, dict):
         keys.extend(model.keys())
-        values.extend(model.values())
+        values = list(model.values())
     else:
         keys.extend(model.__dict__.keys())
-        values.extend(model.__dict__.values())
+        values = list(model.__dict__.values())
 
     if append:
         keys.extend(x[0] for x in append)
-        values.extend(x[1] for x in append)
+
+    values = ", ".join(
+        [
+            *map(str, prepend_values),
+            # keep (x,) due to: https://github.com/pymssql/pymssql/issues/696
+            *[substitute_parameters("%s", (x,)) for x in values],
+            *map(str, append_values),
+        ]
+    )
 
     column_names = "(" + ", ".join(f"[{key}]" for key in keys) + ")"
-    properties = to_sql_list(values)
-    return f"{column_names} VALUES {properties}"
+    return f"{column_names} VALUES ({values})"

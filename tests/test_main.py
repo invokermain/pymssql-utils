@@ -316,10 +316,8 @@ def test_dict_model_to_values():
         "bool": True,
         "none": None,
     }
-    assert (
-        model_to_values(model)
-        == "([text], [float], [datetime], [bool], [none]) VALUES (N'hello', 1.23, N'2020-06-01T12:30:00-01:00', 1, NULL)"
-    )
+    expected = "([text], [float], [datetime], [bool], [none]) VALUES (N'hello', 1.23, N'2020-06-01T12:30:00-01:00', 1, NULL)"
+    assert model_to_values(model) == expected
 
 
 def test_dict_model_to_values_with_prepend():
@@ -328,8 +326,10 @@ def test_dict_model_to_values_with_prepend():
         "float": 1.23,
     }
     assert (
-        model_to_values(model, prepend=[("pre1", "0.123"), ("pre2", "@test")])
-        == "([pre1], [pre2], [text], [float]) VALUES (N'0.123', N'@test', N'hello', 1.23)"
+        model_to_values(
+            model, prepend=[("pre1", "@var1"), ("pre2", "SYSDATETIMEOFFSET()")]
+        )
+        == "([pre1], [pre2], [text], [float]) VALUES (@var1, SYSDATETIMEOFFSET(), N'hello', 1.23)"
     )
 
 
@@ -339,8 +339,10 @@ def test_dict_model_to_values_with_append():
         "float": 1.23,
     }
     assert (
-        model_to_values(model, append=[("pre1", "0.123"), ("pre2", "@test")])
-        == "([text], [float], [pre1], [pre2]) VALUES (N'hello', 1.23, N'0.123', N'@test')"
+        model_to_values(
+            model, append=[("pre1", "@var1"), ("pre2", "SYSDATETIMEOFFSET()")]
+        )
+        == "([text], [float], [pre1], [pre2]) VALUES (N'hello', 1.23, @var1, SYSDATETIMEOFFSET())"
     )
 
 
