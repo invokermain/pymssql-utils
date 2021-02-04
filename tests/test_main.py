@@ -7,7 +7,12 @@ from pytest_mock import MockerFixture
 
 import pymssqlutils as sql
 from pymssqlutils import DatabaseResult
-from pymssqlutils.methods import with_conn_details, model_to_values
+from pymssqlutils.methods import (
+    with_conn_details,
+    model_to_values,
+    substitute_parameters,
+    to_sql_list,
+)
 from tests.helpers import MockCursor
 
 
@@ -309,10 +314,11 @@ def test_dict_model_to_values():
         "float": 1.23,
         "datetime": datetime(2020, 6, 1, 12, 30, tzinfo=timezone(timedelta(hours=-1))),
         "bool": True,
+        "none": None,
     }
     assert (
         model_to_values(model)
-        == "(text, float, datetime, bool) VALUES (N'hello', 1.23, N'2020-06-01T12:30:00-01:00', 1)"
+        == "(text, float, datetime, bool, none) VALUES (N'hello', 1.23, N'2020-06-01T12:30:00-01:00', 1, NULL)"
     )
 
 
@@ -335,4 +341,52 @@ def test_dict_model_to_values_with_append():
     assert (
         model_to_values(model, append=[("pre1", "0.123"), ("pre2", "@test")])
         == "(text, float, pre1, pre2) VALUES (N'hello', 1.23, N'0.123', N'@test')"
+    )
+
+
+def test_substitute_parameters_tuple():
+    params = (
+        1.23,
+        datetime(2020, 6, 1, 12, 30, tzinfo=timezone(timedelta(hours=-1))),
+        "hello",
+        True,
+        None,
+    )
+    query = "%s, %s, %s, %s, %s"
+    assert (
+        substitute_parameters(query, params)
+        == "1.23, N'2020-06-01T12:30:00-01:00', N'hello', 1, NULL"
+    )
+
+
+def test_substitute_parameters_single():
+    params = (
+        1.23,
+        datetime(2020, 6, 1, 12, 30, tzinfo=timezone(timedelta(hours=-1))),
+        "hello",
+        True,
+    )
+    expected = ("1.23", "N'2020-06-01T12:30:00-01:00'", "N'hello'", "1")
+    query = "%s"
+    for param, expected in zip(params, expected):
+        assert substitute_parameters(query, param) == expected
+
+
+def test_substitute_parameters_single_none_raises_error():
+    with pytest.raises(ValueError):
+        substitute_parameters("%s", None)
+
+
+def test_listlike_to_sql_list():
+    assert (
+        to_sql_list(
+            (
+                1.23,
+                datetime(2020, 6, 1, 12, 30, tzinfo=timezone(timedelta(hours=-1))),
+                "hello",
+                True,
+                None,
+            )
+        )
+        == "(1.23, N'2020-06-01T12:30:00-01:00', N'hello', 1, NULL)"
     )
