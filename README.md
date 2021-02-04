@@ -2,13 +2,14 @@
 _pymssql-utils_ is a small library that wraps
 [pymssql](https://github.com/pymssql/pymssql) to make your life easier.
 It provides a higher-level API, as well as a some utility methods,
-so that you can spend less time thinking about connections and cursors
-and more time thinking about your project.
+so that you can think less about connections and cursors.
 
 This module's features:
-* Higher-level API that reduces the amount of boilerplate.
-* Baked-in sensible defaults and good usage patterns.
-* Parses the SQL Types that _pymssql_ misses to native Python types.
+* Higher-level API that reduces the amount of boilerplate required.
+* Baked-in sensible defaults and usage patterns.
+* Provides optional execution batching, similar to
+  [_pyodbc's_](https://github.com/mkleehammer/pyodbc) `fast_executemany`.
+* Parses the SQL Types that _pymssql_ misses to native Python types, and vice versa.
 * Makes it easy to serialize your data with
   [_orjson_](https://github.com/ijl/orjson).
 * Provides you with simple and clear options for error handling.
@@ -24,9 +25,10 @@ This module's enforced opinions (check these work for you):
 * Converts numeric data to `float` as this is easier to work with than `Decimal`
   and for the vast majority of cases 'good enough'.
   
-
-This library was created naturally over the course of a few years of using _pymssql_ in various projects.
-
+When you shouldn't use this module:
+* If you need fine-grained control over your cursors.
+* If performance is a must (use [_pyodbc's_](https://github.com/mkleehammer/pyodbc))
+  
 Please raise any suggestions or issues via GitHub.
 
 ## Usage
@@ -37,15 +39,16 @@ This library requires `Python >= 3.6` and `Pip >= 19.3`.
 
 ### Quickstart
 
-Executing a simple query, accessing the returned data and serialising to JSON:
+This library provides two high-level methods:
+ * `Query`: non-committing, fetches data
+ * `Execute`: committing, optionally fetches data
 
+Running a simple query, accessing the returned data and serialising to JSON:
 ```python
 >>> import pymssqlutils as sql
 >>> result = sql.query(
       "SELECT SYSDATETIMEOFFSET() as now",
-      server="...",
-      user="...",
-      password="..."
+      server="..."
     )
 >>> result.ok
 True
@@ -57,13 +60,17 @@ datetime.datetime(2021, 1, 21, 23, 31, 11, 272299, tzinfo=datetime.timezone.utc)
 '[{"now":"2021-01-21T23:31:11.272299+00:00"}]'
 ```
 
+Running a simple execution:
+
+TODO
+
 ### Specifying Connection
 There are two ways of specifying the connection parameters to the SQL Server:
 1. Passing the required parameters
    ([see pymssql docs](https://pymssql.readthedocs.io/en/stable/ref/pymssql.html#pymssql.connect))
-   into each of function calls (_query, execute & execute_many_) like in the quickstart example above.
-   All kwargs passed to these methods are passed on to the `pymssql.connection()`.
-2. Specify the connection parameters in the environment like the example below, note that parameters given
+   to `query` or `execute` like in the quickstart example above.
+   Note: All extra kwargs passed to these methods are passed on to the `pymssql.connection()`.
+2. Specify the connection parameters in the environment like the example below. Note: that parameters given
    explicitly will take precedence over connection parameters specified in the environment.
    
 ```python
