@@ -38,8 +38,14 @@ def substitute_parameters(operation: str, parameters: SQLParameters) -> str:
             key: item.isoformat() if hasattr(item, "isoformat") else item
             for key, item in parameters.items()
         }
-    elif hasattr(parameters, "isoformat"):
-        parameters = parameters.isoformat()
+    else:
+        if hasattr(parameters, "isoformat"):
+            parameters = parameters.isoformat()
+        elif parameters is None:
+            raise ValueError(
+                "None cannot be passed as a single parameter to substitute_parameters() see "
+                "https://github.com/pymssql/pymssql/issues/696"
+            )
 
     return sql._mssql.substitute_params(operation, parameters).decode("UTF-8")
 
@@ -267,7 +273,8 @@ def to_sql_list(listlike: Iterable) -> str:
     :param listlike: The iterable of objects to transform
     :return: str
     """
-    out_str = ", ".join(substitute_parameters("%s", x) for x in listlike)
+    # keep (x, ) due to: https://github.com/pymssql/pymssql/issues/696
+    out_str = ", ".join(substitute_parameters("%s", (x,)) for x in listlike)
     return f"({out_str})"
 
 
