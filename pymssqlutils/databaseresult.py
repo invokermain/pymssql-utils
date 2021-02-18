@@ -62,11 +62,14 @@ def _clean(item: Any) -> Any:
             return isoparse(f"{match[1]}T{match[2]}" + (match[3] or ""))
 
     if isinstance(item, bytes):
-        # fix for certain versions of FreeTDS driver returning Datetimeoffset as bytes
-        microseconds, days, tz, _ = struct.unpack("QIhH", item)
-        return datetime(
-            1900, 1, 1, 0, 0, 0, tzinfo=timezone(timedelta(minutes=tz))
-        ) + timedelta(days=days, minutes=tz, microseconds=microseconds / 10)
+        try:
+            # fix for certain versions of FreeTDS driver returning Datetimeoffset as bytes
+            microseconds, days, tz, _ = struct.unpack("QIhH", item)
+            return datetime(
+                1900, 1, 1, 0, 0, 0, tzinfo=timezone(timedelta(minutes=tz))
+            ) + timedelta(days=days, minutes=tz, microseconds=microseconds / 10)
+        except struct.error:
+            return item
 
     if isinstance(item, Decimal):
         return float(item)
