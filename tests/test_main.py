@@ -316,7 +316,10 @@ def test_dict_model_to_values():
         "bool": True,
         "none": None,
     }
-    expected = "([text], [float], [datetime], [bool], [none]) VALUES (N'hello', 1.23, N'2020-06-01T12:30:00-01:00', 1, NULL)"
+    expected = (
+        "([text], [float], [datetime], [bool], [none]) VALUES "
+        "(N'hello', 1.23, N'2020-06-01T12:30:00-01:00', 1, NULL)"
+    )
     assert model_to_values(model) == expected
 
 
