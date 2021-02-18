@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pymssql-utils",
-    version="0.0.13",
+    version="0.0.14",
     description="pymssql-utils is a small library that wraps pymssql to make your life easier.",
     long_description=(pathlib.Path(__file__).parent / "README.md").read_text(),
     long_description_content_type="text/markdown",
