@@ -43,14 +43,34 @@ def substitute_parameters(operation: str, parameters: SQLParameters) -> str:
             parameters = parameters.isoformat()
         elif parameters is None:
             raise ValueError(
-                "None cannot be passed as a single parameter to substitute_parameters() see "
-                "https://github.com/pymssql/pymssql/issues/696"
+                "None cannot be passed as a single parameter to substitute_parameters()"
             )
 
     return sql._mssql.substitute_params(operation, parameters).decode("UTF-8")
 
 
-def with_conn_details(kwargs: Dict) -> Dict:
+def set_connection_details(
+    server: str = None, database: str = None, user: str = None, password: str = None
+):
+    """
+    Sets the relevant environment variable for each passed parameter
+    :param server: the network address of the SQL server to connect to, sets 'MSSQL_SERVER' in the environment
+    :param database: the default database to use on the SQL server, sets 'MSSQL_DATABASE' in the environment
+    :param user: the user to authenticate against the SQL server with, sets 'MSSQL_USER' in the environment
+    :param password: the password to authenticate against the SQL server with, sets 'MSSQL_PASSWORD' in the environment
+    :return:
+    """
+    if server:
+        os.environ["MSSQL_SERVER"] = server
+    if database:
+        os.environ["MSSQL_DATABASE"] = database
+    if user:
+        os.environ["MSSQL_USER"] = user
+    if password:
+        os.environ["MSSQL_PASSWORD"] = password
+
+
+def _with_conn_details(kwargs: Dict) -> Dict:
     if not kwargs:
         kwargs = {}
 
@@ -91,7 +111,7 @@ def query(
             [operation],
             [parameters] if parameters else None,
             fetch=True,
-            **with_conn_details(kwargs),
+            **_with_conn_details(kwargs),
         )
     except sql.Error as err:
         if raise_errors:
@@ -169,14 +189,14 @@ def execute(
     try:
         if batch_size:
             return _execute_batched(
-                operations, parameters, batch_size, fetch, **with_conn_details(kwargs)
+                operations, parameters, batch_size, fetch, **_with_conn_details(kwargs)
             )
         return _execute(
             operations,
             parameters,
             commit=True,
             fetch=fetch,
-            **with_conn_details(kwargs),
+            **_with_conn_details(kwargs),
         )
     except sql.Error as err:
         if raise_errors:
@@ -220,7 +240,7 @@ def _execute_batched(
             for i in range(0, len(operations), batch_size)
         ]
 
-    with sql.connect(as_dict=True, **with_conn_details(kwargs)) as cnxn:
+    with sql.connect(as_dict=True, **_with_conn_details(kwargs)) as cnxn:
         with cnxn.cursor() as cur:
             for batch in batched:
                 cur.execute(batch)
