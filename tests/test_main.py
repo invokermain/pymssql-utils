@@ -6,18 +6,20 @@ from pandas import DataFrame
 from pytest_mock import MockerFixture
 
 import pymssqlutils as sql
-from pymssqlutils import DatabaseResult
-from pymssqlutils.methods import (
-    with_conn_details,
+from pymssqlutils import (
+    DatabaseResult,
+    set_connection_details,
     model_to_values,
     substitute_parameters,
     to_sql_list,
 )
+from pymssqlutils.methods import _with_conn_details
+
 from tests.helpers import MockCursor
 
 
 def test_with_conn_details_from_args():
-    conn_details = with_conn_details(
+    conn_details = _with_conn_details(
         {
             "database": "database",
             "server": "server",
@@ -36,7 +38,18 @@ def test_with_conn_details_from_env(monkeypatch):
     monkeypatch.setenv("MSSQL_SERVER", "server")
     monkeypatch.setenv("MSSQL_USER", "user")
     monkeypatch.setenv("MSSQL_PASSWORD", "password")
-    conn_details = with_conn_details({})
+    conn_details = _with_conn_details({})
+    assert conn_details["database"] == "database"
+    assert conn_details["server"] == "server"
+    assert conn_details["user"] == "user"
+    assert conn_details["password"] == "password"
+
+
+def test_set_connection_details(monkeypatch):
+    set_connection_details(
+        database="database", server="server", user="user", password="password"
+    )
+    conn_details = _with_conn_details({})
     assert conn_details["database"] == "database"
     assert conn_details["server"] == "server"
     assert conn_details["user"] == "user"
