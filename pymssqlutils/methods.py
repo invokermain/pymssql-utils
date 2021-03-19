@@ -94,7 +94,8 @@ def query(
     **kwargs,
 ) -> DatabaseResult:
     """
-    A shorthand for a call to execute that fetches the result and DOES NOT commit the transaction.
+    Execute a SQL Operation which DOES NOT COMMIT the transaction & returns the result.
+
     **kwargs are passed through to the pymssql.connect() method.
 
     :param operation: the SQL Operation to execute
@@ -132,12 +133,12 @@ def execute(
 
     Passing in a single operation (str) to operations:
         * If parameters is singular, this calls pymssql.execute() and executes a single operation
-        * If parameters is plural, this calls pymssql.execute_many() and executes one operations per parameter set
+        * If parameters is plural, this calls pymssql.execute_many() and executes one execution per parameter set
 
     Passing in multiple operations (List[str]) to operations:
-        * If parameters is None, this calls pymssql.execute_many() and executes one operation per operation
+        * If parameters is None, this calls pymssql.execute_many() and executes one execution per operation
         * If parameters is the same length as operations, this calls pymssql.execute() multiple times
-          and executes one operation per operqtion.
+          and executes one execution per operation.
 
     Optionally batch_size can be specified to use string concatenation to batch the operations, this can
     provide significant performance gains if executing 100+ small operations. This is similar to fast_executemany
