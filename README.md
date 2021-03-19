@@ -1,8 +1,8 @@
 # pymssql-utils (BETA)
 _pymssql-utils_ is a small library that wraps
 [pymssql](https://github.com/pymssql/pymssql) to make your life easier.
-It provides a higher-level API, as well as a some utility methods,
-so that you can think less about connections and cursors and more about SQL.
+It provides a higher-level API so that you can think less about connections and cursors,
+and more about SQL.
 
 This module's features:
 * Higher-level API that reduces the amount of boilerplate required.
@@ -27,7 +27,7 @@ This module's enforced opinions (check these work for you):
   
 When you shouldn't use this module:
 * If you need fine-grained control over your cursors.
-* If performance is a must (use [_pyodbc's_](https://github.com/mkleehammer/pyodbc))
+* If performance is an absolute must (use [_pyodbc_](https://github.com/mkleehammer/pyodbc))
   
 Please raise any suggestions or issues via GitHub.
 
@@ -35,7 +35,7 @@ Please raise any suggestions or issues via GitHub.
 
 This library is in beta, meaning that pending any major issues
 I do not expect to make any breaking changes to the public API.
-But there might still be a few bugs to be found. There is possibility of expanding on the library
+However, there might still be a few bugs to be found. There is scope for expanding the library
 if new features are requested.
 
 ## Usage
