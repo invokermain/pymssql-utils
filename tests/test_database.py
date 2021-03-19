@@ -20,7 +20,8 @@ def test_type_parsing():
     data = sql.query(
         """
             SELECT
-                GETDATE() Col_Date,
+                CAST(GETDATE() AS DATE) Col_Date,
+                CONVERT(VARBINARY(MAX), 'BinaryText') Col_Binary,
                 CAST(SYSDATETIMEOFFSET() AS time(1)) Col_Time1,
                 CAST(SYSDATETIMEOFFSET() AS time(2)) Col_Time2,
                 CAST(SYSDATETIMEOFFSET() AS time(3)) Col_Time3,
@@ -43,6 +44,8 @@ def test_type_parsing():
         """
     ).data[0]
 
+    assert isinstance(data["Col_Binary"], bytes)
+    assert data["Col_Binary"].decode("UTF8") == "BinaryText"
     assert isinstance(data["Col_Date"], date)
     assert isinstance(data["Col_Time1"], time)
     assert isinstance(data["Col_Time2"], time)
