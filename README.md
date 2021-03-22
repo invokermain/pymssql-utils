@@ -9,7 +9,7 @@ This module's features:
 * Baked-in sensible defaults and usage patterns.
 * Provides optional execution batching, similar to
   [_pyodbc's_](https://github.com/mkleehammer/pyodbc) `fast_executemany`.
-* Parses the SQL Types that _pymssql_ misses to native Python types, and vice versa.
+* Provides consistent parsing between SQL Types and native Python types.
 * Makes it easy to serialize your data with
   [_orjson_](https://github.com/ijl/orjson).
 * Provides you with simple and clear options for error handling.
@@ -169,13 +169,42 @@ Optionally `batch_size` can be specified to use string concatenation to batch th
 provide significant performance gains if executing 100+ small operations. This is similar to `fast_executemany`
 found in the `pyodbc` package. A value of 500-1000 is a good default.
 
+### DatabaseResult Class
+
+One big difference between this library and _pymssql_ is that
+`execute` and `query` return an instance of the `DatabaseResult` class.
+
+This class hold the returned data (where it exists) and provides
+some informational attributes as well as some useful methods.
+
+#### Attributes
+ * `ok`: True if the execution did not error, else False. Only useful if using `raise_errors = False`,
+   see below section on Error Handling.
+ * `error`: Populated by the error raised during execution (if applicable). Only useful if using `raise_errors = False`.
+ * `fetch`: True if results from the execution were fetched (e.g. if using `query`) else False.
+ * `commit`: True if the execution was committed (i.e. if using `execute`) else False.
+ * `columns`: A list of the column names in the dataset returned from the execution (if applicable)
+ * `data`: The dataset returned from the execution (if applicable), this is a list of dictionaries.
+
+#### Methods
+ * `to_dataframe`: (requires Pandas installed), returns the dataset as a DataFrame object.
+   All args and kwargs are parsed to the DataFrame constructor.
+ * `to_json`: returns the dataset as a json serialized string using the `orjson` library.
+   Note that this will fail if your data contains `bytes` type values. By default this method returns a string, but
+   pass `as_bytes = True` to return a byte string.
+ * `write_error_to_logger`: writes the error information to the library's logger, optionally pass a `name` parameter
+  to allow you to easier indentify the query in the logging output.
+ * `raise_error`: raises a `pymssqlutils.DatabaseError` from the underlying `pymssql` error,
+   optionally pass a `name` parameter to allow you to easier indentify the query in the error output.
+
+
 ### Error handling
 
-For both `query` & `execute` take a `raise_errors` parameter which is by default `True`. This means that errors will be
-raised to the stack as expected.
+Both `query` & `execute` take `raise_errors` as a parameter, which is by default `True`. This means that by default
+_pymssql-utils_ will let _pymssql_ raise errors as normal.
 
-Specifying `raise_errors` to be `False` will pass any errors onto the `DatabaseResult` class which allows the developer
-to handle errors themselves, for example:
+Passing `raise_errors` as `False` will pass any errors onto the `DatabaseResult` class which allows you
+to handle errors gracefully using the `DatabaseResult` class (see above), e.g.:
 
 ```python
 import pymssqlutils as db
@@ -190,11 +219,125 @@ if not result.ok: # result.ok will be False due to error
     # the error is stored under the error attribute
    error = result.error 
    
-    # can always reraise the error
+    # can always re-raise the error
     result.raise_error('Query Identifier')
 ```
 
-### Utility Functions (TODO)
+### Utility Functions
+#### set_connection_details
+
+The `set_connection_details` method is a helper function which will set the value of
+the relevant environment variable for the connection kwargs given.
+
+Warning: this function has program wide side effects and will overwrite any
+previously set connection details in the environment; therefore its usage is only recommended
+in single script projects/notebooks. In larger applications
+prefer setting the environment variables directly,
+this will also help keep parity between the Development & Production environments.
+
+```python
+def set_connection_details(
+    server: str = None,
+    database: str = None,
+    user: str = None,
+    password: str = None
+) -> None:
+```
+
+Parameters:
+* `server (str)`: the network address of the SQL server to connect to, sets 'MSSQL_SERVER' in the environment.
+* `database (str)`: the default database to use on the SQL server, sets 'MSSQL_DATABASE' in the environment.
+* `user (str)`: the user to authenticate against the SQL server with, sets 'MSSQL_USER' in the environment
+* `password (str)`: the password to authenticate against the SQL server with, sets 'MSSQL_PASSWORD' in the environment
+
+#### substitute_parameters
+
+The `substitute_parameters` method does the same parameter substitution as `query` and `execute`, but returns the
+substituted operation instead of executing it. This allows you to see the actual operation being run
+against the database and is useful for debugging and logging.
+
+```python
+substitute_parameters(
+    operation: str,
+    parameters: SQLParameters
+) -> str:
+```
+
+Parameters:
+* `operation (str)`: The SQL operation requiring substitution.
+* 'parameters (SQLParameters)': The parameters to substitute in.
+
+Returns the parameter substituted SQL operation as a string.
+
+Example:
+
+```python3
+>>> substitute_parameters("SELECT %s Col1, %s Col2", ("Hello", 1.23))
+"SELECT N'Hello' Col1, 1.23 Col2"
+```
+
+#### to_sql_list
+
+The `to_sql_list` method converts a Python iterable to a string form of the SQL equivalent list. This is useful
+when creating dynamic SQL operations using the 'IN' operator.
+
+```python
+to_sql_list(
+    listlike: Iterable[SQLParameter]
+) -> str:
+```
+
+Parameters:
+* `listlike (Iterable[SQLParameter])`: The iterable of SQLParameter to transform
+
+Returns the SQL equivalent list as a string
+
+Examples:
+
+```python3
+>>> to_sql_list([1, 'hello', datetime.now()])
+"(1, N'hello', N'2021-03-22T10:56:27.981173')"
+```
+
+```python3
+>>> my_ids = [1, 10, 21]
+>>> f"SELECT * FROM MyTable WHERE Id IN {to_sql_list(my_ids)}"
+'SELECT * FROM MyTable WHERE Id IN (1, 10, 21)'
+```
+
+#### model_to_values
+
+The `model_to_values` method converts a Python mapping (e.g. dictionary of Pydantic model) to the SQL equivalent
+values string. This is useful when creating dynamic SQL operations using the 'INSERT' statement.
+
+```python3
+model_to_values(
+    model: Any,
+    prepend: List[Tuple[str, str]] = None,
+    append: List[Tuple[str, str]] = None,
+) -> str:
+```
+
+Parameters:
+* `model (Any)`: A mapping to transform, i.e. a dictionary or an object that has the __dict__ method implemented,
+  with string keys and SQLParameter values.
+* `prepend (List[Tuple[str, str]])`: prepend a variable number of columns to the beginning of the values statement.
+* `append (List[Tuple[str, str]])`: append a variable number of columns to the end of the values statement.
+
+Returns a string of the form: `([attr1], [attr2], ...) VALUES (val1, val2, ...)`.
+
+Warning: prepended and appended columns are not parameter substituted,
+this can leave your code open to SQL injection attacks.
+
+Example:
+
+```python3
+>>> my_data = {'value': 1.56, 'insertDate': datetime.now()}
+>>> model_to_values(my_data, prepend=[('ForeignId', '@Id')])
+"([ForeignId], [value], [insertDate]) VALUES (@Id, 1.56, N'2021-03-22T13:58:33.758740')"
+>>> f"INSERT IN MyTable {model_to_values(my_data, prepend=[('foreignId', '@Id')])}"
+"INSERT IN MyTable ([foreignId], [value], [insertDate]) VALUES (@Id, 1.56, N'2021-03-22T13:58:33.758740')"
+```
 
 ## Notes
 ### Type Parsing
@@ -223,9 +366,13 @@ This ensures consistent behaviour across various systems, see the table below fo
 
 ## Testing
 
-Must install pytest to run main tests, that mock cursor results.
-To test on_database tests against an MSSQL instance `"TEST_ON_DATABASE"` must be set in the environment
-as well as any of the normal env variables to connect to the MSSQL server, `pytest-dotenv` can help with this.
+Install pytest to run non-integration tests via `pytest .`,
+these tests mock the cursor results allowing the library to test locally.
+
+To test against an MSSQL instance install `pytest-dotenv`.
+Then create a `.env` file with `"TEST_ON_DATABASE"` set as a truthy value, as well as any
+connection environemt variables for the MSSQL server.
+These tests will then be run (not-skipped), e.g. `pytest . --envfile .test.env`
 
 ### Why _pymssql_ when Microsoft officially recommends _pyodbc_ (opinion)?
 
