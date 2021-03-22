@@ -265,7 +265,7 @@ substitute_parameters(
 
 Parameters:
 * `operation (str)`: The SQL operation requiring substitution.
-* 'parameters (SQLParameters)': The parameters to substitute in.
+* `parameters (SQLParameters)`: The parameters to substitute in.
 
 Returns the parameter substituted SQL operation as a string.
 
