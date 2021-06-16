@@ -7,7 +7,7 @@ extra_test = [
     "pandas>=1.2.0,<2.0.0",
     "pytest-dotenv>=0.5.0,<1.0.0",
 ]
-extra_all = extra_json
+extra_all = extra_json + extra_test
 
 setup(
     name="pymssql-utils",
