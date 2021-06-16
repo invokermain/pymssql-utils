@@ -2,7 +2,6 @@ from datetime import date, time, datetime, timezone, timedelta
 
 import pymssql
 import pytest
-from pandas import DataFrame
 from pytest_mock import MockerFixture
 
 import pymssqlutils as sql
@@ -317,7 +316,7 @@ def test_cast_to_dataframe():
     )
     df = result.to_dataframe()
 
-    assert isinstance(df, DataFrame)
+    assert isinstance(df, pandas.DataFrame)
     assert df.columns.tolist() == result.columns
 
 
