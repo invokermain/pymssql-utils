@@ -33,16 +33,23 @@ Please raise any suggestions or issues via GitHub.
 
 ## Status
 
-This library is in beta, meaning that pending any major issues
-I do not expect to make any breaking changes to the public API.
+This library is in beta, meaning that
+there will not be any breaking changes to the public API.
 However, there might still be a few bugs to be found. There is scope for expanding the library
 if new features are requested.
+
+## Changes
+
+See the repository's [GitHub releases](https://github.com/invokermain/pymssql-utils/releases).
 
 ## Usage
 ### Installation
 
 This library can be installed via pip: `pip install --upgrade pymssql-utils`.
-This library requires `Python >= 3.6` and `Pip >= 19.3`.
+This library requires `Python >= 3.6`.
+
+If you want to serialize your results to JSON you can install the optional dependency `ORJSON`
+by running `pip install --upgrade pymssql-utils[json]`.
 
 ### Quickstart
 
@@ -189,7 +196,8 @@ some informational attributes as well as some useful methods.
 #### Methods
  * `to_dataframe`: (requires Pandas installed), returns the dataset as a DataFrame object.
    All args and kwargs are parsed to the DataFrame constructor.
- * `to_json`: returns the dataset as a json serialized string using the `orjson` library.
+ * `to_json`: returns the dataset as a json serialized string using the `orjson` library, make sure this 
+   optional dependency is installed by running `pip install --upgrade pymssql-utils[json]`.
    Note that this will fail if your data contains `bytes` type values. By default this method returns a string, but
    pass `as_bytes = True` to return a byte string.
  * `write_error_to_logger`: writes the error information to the library's logger, optionally pass a `name` parameter
