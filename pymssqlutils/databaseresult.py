@@ -124,7 +124,7 @@ class DatabaseResult:
             self.error.args[1] if len(self.error.args) >= 2 else self.error
         )
         logger.error(
-            f"DatabaseResult Error (<{name}|{self.fetch=},{self.commit=}>)"
+            f"DatabaseResult Error (<{name}|fetch={self.fetch},commit={self.commit}>)"
             f": <{type(self.error).__name__}> {error_text}"
         )
 
@@ -137,7 +137,7 @@ class DatabaseResult:
         if self.ok:
             raise ValueError("This execution did not error")
         raise DatabaseError(
-            f"<{name}|{self.fetch=},{self.commit=}> bad execution"
+            f"<{name}|fetch={self.fetch},commit={self.commit}> bad execution"
         ) from self.error
 
     def to_dataframe(self, *args, **kwargs):
