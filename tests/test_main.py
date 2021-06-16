@@ -390,11 +390,6 @@ def test_substitute_parameters_single():
         assert substitute_parameters(query, param) == expected
 
 
-def test_substitute_parameters_single_none_raises_error():
-    with pytest.raises(ValueError):
-        substitute_parameters("%s", None)
-
-
 def test_to_sql_list():
     assert (
         to_sql_list(

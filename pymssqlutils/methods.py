@@ -14,19 +14,19 @@ from typing import (
 import pymssql as sql
 
 from .databaseresult import DatabaseResult
-from .helpers import SQLParameters
+from .helpers import SQLParameters, SQLParameter
 
 logger = logging.getLogger(__name__)
 
 
 def substitute_parameters(operation: str, parameters: SQLParameters) -> str:
     """
-    This function returns the SQL code that would be executed on the server (i.e. after
-    parsing and substituting the parameters.
+    This function returns the SQL operation that would be executed on the server (i.e. after
+    parsing and substituting of parameters). Useful for logging & debugging.
 
-    :param operation: The query string
-    :param parameters: The parameters to substitute
-    :return: the parameter substituted sql string
+    :param operation: The SQL operation requiring substitution
+    :param parameters: The parameters to substitute in
+    :return: The parameter substituted SQL operation as a string
     """
     if isinstance(parameters, tuple):
         parameters = tuple(
@@ -42,16 +42,14 @@ def substitute_parameters(operation: str, parameters: SQLParameters) -> str:
         if hasattr(parameters, "isoformat"):
             parameters = parameters.isoformat()
         elif parameters is None:
-            raise ValueError(
-                "None cannot be passed as a single parameter to substitute_parameters()"
-            )
+            parameters = (None,)
 
     return sql._mssql.substitute_params(operation, parameters).decode("UTF-8")
 
 
 def set_connection_details(
     server: str = None, database: str = None, user: str = None, password: str = None
-):
+) -> None:
     """
     Sets the relevant environment variable for each passed parameter
     :param server: the network address of the SQL server to connect to, sets 'MSSQL_SERVER' in the environment
@@ -284,18 +282,17 @@ def _execute(
     return DatabaseResult(data=data, ok=True, fetch=fetch, commit=commit)
 
 
-def to_sql_list(listlike: Iterable) -> str:
+def to_sql_list(listlike: Iterable[SQLParameter]) -> str:
     """
     Transforms an iterable to a SQL list string.
     Intended to be used with the SQL 'in' operator when building dynamic SQL queries.
 
     e.g. [1, 2, 3] -> '(1, 2, 3)'
 
-    :param listlike: The iterable of objects to transform
+    :param listlike: The iterable of SQLParameter to transform
     :return: str
     """
-    # keep (x, ) due to: https://github.com/pymssql/pymssql/issues/696
-    out_str = ", ".join(substitute_parameters("%s", (x,)) for x in listlike)
+    out_str = ", ".join(substitute_parameters("%s", x) for x in listlike)
     return f"({out_str})"
 
 
