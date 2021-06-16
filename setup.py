@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 extra_json = ["orjson>=3.4.0,<4.0.0"]
 extra_test = [
     "pytest-mock>=3.6.0,<4.0.0",
-    "pandas>=1.2.0,<2.0.0",
+    "pandas>=1.0.0,<2.0.0",
     "pytest-dotenv>=0.5.0,<1.0.0",
 ]
 extra_all = extra_json + extra_test
