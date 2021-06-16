@@ -1,9 +1,12 @@
 import pathlib
 from setuptools import setup, find_packages
 
+extra_json = ["orjson>=3.4.0,<4.0.0"]
+extra_all = extra_json
+
 setup(
     name="pymssql-utils",
-    version="0.0.15",
+    version="0.0.16",
     description="pymssql-utils is a small library that wraps pymssql to make your life easier.",
     long_description=(pathlib.Path(__file__).parent / "README.md").read_text(),
     long_description_content_type="text/markdown",
@@ -23,5 +26,12 @@ setup(
     packages=find_packages(),
     python_requires=">=3.6",
     include_package_data=True,
-    install_requires=["pymssql==2.1.*", "python-dateutil==2.8.*", "orjson==3.4.*"],
+    install_requires=[
+        "pymssql>=2.1.0,<3.0.0",
+        "python-dateutil>=2.8.0,<3.0.0",
+    ],
+    extras_require={
+        "all": extra_all,
+        "json": extra_json,
+    },
 )

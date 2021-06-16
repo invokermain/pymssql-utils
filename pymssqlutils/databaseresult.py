@@ -3,11 +3,10 @@ import re
 import struct
 from datetime import date, time, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Dict, Any, List, Union, Optional, Tuple
+from typing import Dict, Any, List, Union
 
 import pymssql as sql
 from dateutil.parser import isoparse
-from orjson import dumps
 
 from pymssqlutils.helpers import SQLParameter
 
@@ -163,6 +162,19 @@ class DatabaseResult:
         :params as_bytes: bool, if True returns the JSON object as UTF-8 encoded bytes instead of string
         :return: Union[bytes, str]
         """
+
+        if self.data is None:
+            raise ValueError("DatabaseResult class has no data to cast to DataFrame")
+
+        # noinspection PyUnresolvedReferences
+        try:
+            from orjson import dumps
+        except ImportError:
+            raise RuntimeError(
+                "ORJSON must be installed to use this method, you can install "
+                + "this by running `pip install --upgrade pymssql-utils[json]`"
+            )
+
         if as_bytes:
             return dumps(self.data)
         else:
