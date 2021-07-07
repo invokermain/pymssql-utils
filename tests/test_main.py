@@ -1,4 +1,4 @@
-from datetime import date, time, datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta
 
 import pymssql
 import pytest
@@ -13,8 +13,12 @@ from pymssqlutils import (
     to_sql_list,
 )
 from pymssqlutils.methods import _with_conn_details
-
-from tests.helpers import MockCursor
+from tests.helpers import (
+    MockCursor,
+    check_correct_types,
+    cursor_row,
+    cursor_description,
+)
 
 
 def test_with_conn_details_from_args():
@@ -236,35 +240,27 @@ def test_query(mocker: MockerFixture, monkeypatch):
 
 def test_data_parsing(monkeypatch):
     result = DatabaseResult(
-        ok=True, fetch=True, commit=False, data=MockCursor().fetchall(), error=None
+        ok=True, fetch=True, commit=False, cursor=MockCursor(row_count=1)
     )
-    data = result.data[0]
-
-    assert isinstance(data["Col_Date"], date)
-    assert isinstance(data["Col_Time1"], time)
-    assert isinstance(data["Col_Time2"], time)
-    assert isinstance(data["Col_Time3"], time)
-    assert isinstance(data["Col_Time4"], time)
-    assert isinstance(data["Col_Time5"], time)
-    assert isinstance(data["Col_Time6"], time)
-    assert isinstance(data["Col_Time7"], time)
-    assert isinstance(data["Col_Smalldatetime"], datetime)
-    assert isinstance(data["Col_Datetime"], datetime)
-    assert isinstance(data["Col_Datetime2"], datetime)
-    assert isinstance(data["Col_Datetimeoffset0"], datetime)
-    assert isinstance(data["Col_Datetimeoffset1"], datetime)
-    assert isinstance(data["Col_Datetimeoffset2"], datetime)
-    assert isinstance(data["Col_Datetimeoffset3"], datetime)
-    assert isinstance(data["Col_Datetimeoffset4"], datetime)
-    assert isinstance(data["Col_Datetimeoffset5"], datetime)
-    assert isinstance(data["Col_Datetimeoffset6"], datetime)
-    assert isinstance(data["Col_Datetimeoffset7"], datetime)
-    assert isinstance(data["Col_Numeric"], float)
+    check_correct_types(result.data[0])
 
 
 def test_data_serializable():
+    description = list(cursor_description)
+    example_row = list(cursor_row[0])
+
+    # remove bytes as not JSON Serializable
+    for idx in (9, 8):
+        example_row.pop(idx)
+        description.pop(idx)
+
     result = DatabaseResult(
-        ok=True, fetch=True, commit=False, data=MockCursor().fetchall(), error=None
+        ok=True,
+        fetch=True,
+        commit=False,
+        cursor=MockCursor(
+            row_count=3, row=[tuple(example_row)], description=tuple(description)
+        ),
     )
 
     assert isinstance(result.to_json(), str)
@@ -312,12 +308,12 @@ def test_result_error_handling_on_raise(monkeypatch):
 def test_cast_to_dataframe():
     pandas = pytest.importorskip("pandas")
     result = DatabaseResult(
-        ok=True, fetch=True, commit=False, data=MockCursor().fetchall(), error=None
+        ok=True, fetch=True, commit=False, cursor=MockCursor(row_count=5)
     )
     df = result.to_dataframe()
 
     assert isinstance(df, pandas.DataFrame)
-    assert df.columns.tolist() == result.columns
+    assert df.columns.tolist() == list(result.columns)
 
 
 def test_dict_model_to_values():
