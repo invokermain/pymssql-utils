@@ -246,6 +246,8 @@ def test_data_parsing(monkeypatch):
 
 
 def test_data_serializable():
+    pytest.importorskip("orjson")
+
     description = list(cursor_description)
     example_row = list(cursor_row[0])
 
