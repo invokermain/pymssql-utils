@@ -1,79 +1,69 @@
 import logging
-import re
 import struct
 from datetime import date, time, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List, Union, Tuple, Optional, Callable
 
 import pymssql as sql
-from dateutil.parser import isoparse
-
-from pymssqlutils.helpers import SQLParameter
 
 logger = logging.getLogger(__name__)
 
-date_regex = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
-time_regex = re.compile(r"(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6})\d?)?")
-datetime2_regex = re.compile(r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}.\d{7}")
-datetimeoffset_regex = re.compile(
-    r"(\d{4}-\d{2}-\d{2})\s(\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?)\d?\s([+-]\d{2}:\d{2})"
-)
+
+def _parse_datetimeoffset_from_bytes(item: bytes) -> datetime:
+    # fix for certain versions of FreeTDS driver returning Datetimeoffset as bytes
+    microseconds, days, tz, _ = struct.unpack("QIhH", item)
+    return datetime(
+        1900, 1, 1, 0, 0, 0, tzinfo=timezone(timedelta(minutes=tz))
+    ) + timedelta(days=days, minutes=tz, microseconds=microseconds / 10)
 
 
-def _is_time(x):
-    return re.fullmatch(time_regex, x)
+def identity(x):
+    return x
 
 
-def _is_date(x):
-    return re.fullmatch(date_regex, x)
+def cursor_generator(cursor_):
+    while True:
+        out = cursor_.fetchmany(size=10000)
+        if out:
+            yield out
+        return
 
 
-def _is_datetimeoffset(x):
-    return re.fullmatch(datetimeoffset_regex, x)
+def _get_data_mapper(sql_type_hint: int, item: Any) -> Callable[[Any], Any]:
+    if sql_type_hint == 1:  # STRING: str
+        if isinstance(item, str):
+            return identity
 
-
-def _is_datetime2(x):
-    return re.fullmatch(datetime2_regex, x)
-
-
-def _clean(item: Any) -> Any:
-    if isinstance(item, str):
-        # handle various date/time returns that pymssql doesn't handle
-        match = _is_date(item)
-        if match:
-            return date(int(match[1]), int(match[2]), int(match[3]))
-
-        match = _is_time(item)
-        if match:
-            return time(
-                int(match[1]),
-                int(match[2]),
-                int(match[3]),
-                microsecond=int(match[4]) if match[4] else 0,
-            )
-
-        match = _is_datetime2(item)
-        if match:
-            return isoparse(item[:-1])
-
-        match = _is_datetimeoffset(item)
-        if match:
-            return isoparse(f"{match[1]}T{match[2]}" + (match[3] or ""))
-
-    if isinstance(item, bytes):
+    if sql_type_hint == 2:  # BINARY: bytes, datetime, time, date
+        if isinstance(item, datetime):
+            return identity
+        if isinstance(item, date):
+            return identity
+        if isinstance(item, time):
+            return identity
         try:
-            # fix for certain versions of FreeTDS driver returning Datetimeoffset as bytes
-            microseconds, days, tz, _ = struct.unpack("QIhH", item)
-            return datetime(
-                1900, 1, 1, 0, 0, 0, tzinfo=timezone(timedelta(minutes=tz))
-            ) + timedelta(days=days, minutes=tz, microseconds=microseconds / 10)
+            _parse_datetimeoffset_from_bytes(item)
+            return _parse_datetimeoffset_from_bytes
         except struct.error:
-            return item
+            # it's not a datetime
+            return identity
 
-    if isinstance(item, Decimal):
-        return float(item)
+    if sql_type_hint == 3:  # NUMBER: int, float
+        if isinstance(item, int):
+            return identity
+        if isinstance(item, float):
+            return identity
 
-    return item
+    if sql_type_hint == 4:  # DATETIME: datetime
+        if isinstance(item, datetime):
+            return identity
+
+    if sql_type_hint == 5:  # DECIMAL: float (forced), int
+        # warning: bigint is returned as Decimal type
+        if isinstance(item, Decimal):
+            return float
+
+    raise ValueError(f"unhandled type ({sql_type_hint}, {item}, {type(item)})")
 
 
 class DatabaseError(Exception):
@@ -84,31 +74,75 @@ class DatabaseResult:
     ok: bool
     fetch: bool
     commit: bool
-    columns: List[str] = None
-    data: List[Dict[str, SQLParameter]] = None
-    error: sql.Error = None
+    columns: Optional[Tuple[str, ...]]
+    error: sql.Error
+    source_types: Optional[Tuple[int, ...]]
 
     def __init__(
         self,
         ok: bool,
         fetch: bool,
         commit: bool,
-        data: List[Dict] = None,
+        cursor: sql.Cursor = None,
         error: sql.Error = None,
     ):
         self.ok = ok
         self.fetch = fetch
         self.commit = commit
+        self.error = error
+        self.columns = None
+        self.source_types = None
+        self._data_mappers = None
+        self._data = None
 
-        if error:
-            self.error = error
-        else:
-            if data:
-                self.columns = [*data[0]]
-                self.data = [{k: _clean(v) for k, v in row.items()} for row in data]
-            elif self.fetch:
-                self.data = []
-                self.columns = []
+        if self.error:
+            return
+
+        if fetch:
+            self.columns = tuple(x[0] for x in cursor.description)
+            self.source_types = tuple(x[1] for x in cursor.description)
+            self._data_mappers = [None] * len(self.source_types)
+            self._data = [
+                item
+                for items in cursor_generator(cursor)
+                for item in self._clean_batch(items)
+            ]
+
+    def _clean_batch(self, items):
+        return tuple(
+            tuple(self._clean_item(e, item) for e, item in enumerate(row))
+            for row in items
+        )
+
+    def _clean_item(self, idx: int, item: Any):
+        if item is None:
+            return None
+
+        if self._data_mappers[idx] is not None:
+            return self._data_mappers[idx](item)
+
+        data_mapper = _get_data_mapper(self.source_types[idx], item)
+
+        if data_mapper is None:
+            return item
+
+        self._data_mappers[idx] = data_mapper
+        return self._data_mappers[idx](item)
+
+    @property
+    def data(self) -> Optional[List[Dict[str, Tuple[Any, ...]]]]:
+        if self._data is not None:
+            return [
+                {self.columns[e]: item for e, item in enumerate(row)}
+                for row in self._data
+            ]
+        return None
+
+    @property
+    def raw_data(self) -> Optional[List[Tuple[Any, ...]]]:
+        if self._data is not None:
+            return self._data
+        return None
 
     def write_error_to_logger(self, name: str = "unknown") -> None:
         """
@@ -163,7 +197,7 @@ class DatabaseResult:
         :return: Union[bytes, str]
         """
 
-        if self.data is None:
+        if not self._data:
             raise ValueError("DatabaseResult class has no data to cast to DataFrame")
 
         # noinspection PyUnresolvedReferences
