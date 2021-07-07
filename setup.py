@@ -1,4 +1,5 @@
 import pathlib
+
 from setuptools import setup, find_packages
 
 extra_json = ["orjson>=3.4.0,<4.0.0"]
@@ -11,7 +12,7 @@ extra_all = extra_json + extra_test
 
 setup(
     name="pymssql-utils",
-    version="0.0.16",
+    version="0.0.17",
     description="pymssql-utils is a small library that wraps pymssql to make your life easier.",
     long_description=(pathlib.Path(__file__).parent / "README.md").read_text(),
     long_description_content_type="text/markdown",
