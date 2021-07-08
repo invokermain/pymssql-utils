@@ -1,19 +1,12 @@
 import logging
 import os
 from itertools import zip_longest
-from typing import (
-    Dict,
-    List,
-    Tuple,
-    Union,
-    Iterable,
-    Any,
-)
+from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import pymssql as sql
 
 from .databaseresult import DatabaseResult
-from .helpers import SQLParameters, SQLParameter
+from .helpers import SQLParameter, SQLParameters
 
 logger = logging.getLogger(__name__)
 

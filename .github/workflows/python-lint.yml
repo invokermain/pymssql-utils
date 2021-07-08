@@ -1,0 +1,24 @@
+  
+name: Lint
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Setup Poetry
+        uses: abatilo/actions-poetry@v2.1.0
+      - name: Install requirements
+        run: pip install black isort flake8
+      - name: Black
+        run: black . --check
+      - name: Flake8
+        run: flake8 --max-line-length 120 --extend-ignore E203
+      - name: Isort
+        run: isort . -c

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pymssql
 import pytest
@@ -7,8 +7,8 @@ from pytest_mock import MockerFixture
 import pymssqlutils as sql
 from pymssqlutils import (
     DatabaseResult,
-    set_connection_details,
     model_to_values,
+    set_connection_details,
     substitute_parameters,
     to_sql_list,
 )
@@ -16,8 +16,8 @@ from pymssqlutils.methods import _with_conn_details
 from tests.helpers import (
     MockCursor,
     check_correct_types,
-    cursor_row,
     cursor_description,
+    cursor_row,
 )
 
 
@@ -246,6 +246,8 @@ def test_data_parsing(monkeypatch):
 
 
 def test_data_serializable():
+    pytest.importorskip("orjson")
+
     description = list(cursor_description)
     example_row = list(cursor_row[0])
 

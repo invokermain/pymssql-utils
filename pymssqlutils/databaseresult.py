@@ -1,8 +1,8 @@
 import logging
 import struct
-from datetime import date, time, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
-from typing import Dict, Any, List, Union, Tuple, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pymssql as sql
 
