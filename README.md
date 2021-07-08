@@ -20,22 +20,19 @@ This module's features:
 This module's enforced opinions (check these work for you):
 * Each execution opens and closes a connection using _pymssql_'s
   context management.
-* Execution data is returned as a dictionary, as accessing data by column name
-  is clearer and simpler than by index.
 * Converts numeric data to `float` as this is easier to work with than `Decimal`
   and for the vast majority of cases 'good enough'.
   
 When you shouldn't use this module:
 * If you need fine-grained control over your cursors.
-* If performance is an absolute must (use [_pyodbc_](https://github.com/mkleehammer/pyodbc))
   
 Please raise any suggestions or issues via GitHub.
 
 ## Status
 
 This library is in beta, meaning that
-there will not be any breaking changes to the public API.
-However, there might still be a few bugs to be found. There is scope for expanding the library
+you should not expect any breaking changes to the public API,
+however, there might still be a few bugs to be found. There is also scope for expanding the library
 if new features are requested.
 
 ## Changes
@@ -46,19 +43,21 @@ See the repository's [GitHub releases](https://github.com/invokermain/pymssql-ut
 ### Installation
 
 This library can be installed via pip: `pip install --upgrade pymssql-utils`.
-This library requires `Python >= 3.6`.
+This library requires `Python >= 3.7`.
 
 If you want to serialize your results to JSON you can install the optional dependency `ORJSON`
 by running `pip install --upgrade pymssql-utils[json]`.
 
+If you want to cast your results to DataFrame you can install the optional dependency `Pandas`
+by running `pip install --upgrade pymssql-utils[pandas]`.
+
 ### Quickstart
 
 This library provides two high-level methods:
- * `query`: fetches the result, DOES NOT commit the transaction.
- * `execute`: which by default does not fetch the result, and DOES commit the transaction.
+ * `query`: executes a SQL query, fetches the result, and DOES NOT commit the transaction.
+ * `execute`: similar, but which by default does not fetch the result, and DOES commit the transaction.
 
-This separation of _pymssql's_ `execute` is to make your code more explicit, concise and discoverable, allowed as
-the library is not _DB_API_ compliant anyway.
+This separation of _pymssql's_ `execute` is to make your code more explicit and readable.
 
 An example for running a simple query, accessing the returned data and serialising to JSON:
 ```python
@@ -181,8 +180,8 @@ found in the `pyodbc` package. A value of 500-1000 is a good default.
 One big difference between this library and _pymssql_ is that
 `execute` and `query` return an instance of the `DatabaseResult` class.
 
-This class hold the returned data (where it exists) and provides
-some informational attributes as well as some useful methods.
+This class holds the returned data, if there is any, and provides
+some useful attributes and methods.
 
 #### Attributes
  * `ok`: True if the execution did not error, else False. Only useful if using `raise_errors = False`,
@@ -192,6 +191,7 @@ some informational attributes as well as some useful methods.
  * `commit`: True if the execution was committed (i.e. if using `execute`) else False.
  * `columns`: A list of the column names in the dataset returned from the execution (if applicable)
  * `data`: The dataset returned from the execution (if applicable), this is a list of dictionaries.
+ * `raw_data`: The dataset returned from the execution (if applicable), this is a list of tuples.
 
 #### Methods
  * `to_dataframe`: (requires Pandas installed), returns the dataset as a DataFrame object.
