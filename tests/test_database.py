@@ -1,11 +1,11 @@
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 import pymssqlutils as sql
 from pymssqlutils import model_to_values
-from tests.helpers import generate_fake_data_query, check_correct_types
+from tests.helpers import check_correct_types, generate_fake_data_query
 
 SKIP_FILE = not os.environ.get("TEST_ON_DATABASE")
 SKIP_REASON = "TEST_ON_DATABASE is not set in environment"

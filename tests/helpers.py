@@ -1,6 +1,6 @@
-from datetime import date, time, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Dict, Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from pymssql import Cursor
 
@@ -148,7 +148,7 @@ class MockConnection:
 def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
     return f"""
         DECLARE @NullRatio FLOAT = {null_percentage};
-        
+
         SELECT
             1 Col_Int,
             2147483648 Col_BigInt,
@@ -188,7 +188,7 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
             NULL Col_Null
         INTO
             #row;
-        
+
         WITH BaseData AS (
             SELECT * FROM #row
             UNION ALL
@@ -241,7 +241,7 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
         FROM
             BaseData
         OPTION (MAXRECURSION 0);
-        
+
         DECLARE @Id INT = 1
         WHILE @Id <= {rows}
         BEGIN
@@ -283,11 +283,11 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
                 , Col_Datetimeoffset7 = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Datetimeoffset7)
                 , Col_Null = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Null)
             WHERE Col_Int = @Id
-            
-            SET @Id = @Id + 1 
-         
+
+            SET @Id = @Id + 1
+
         END
-        
+
         SELECT * FROM #generated
     """
 
