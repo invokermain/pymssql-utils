@@ -20,6 +20,6 @@ jobs:
     - name: Build
       run: poetry build
     - name: Publish
-      run: poetry publish --dry-run
+      run: poetry publish
       env:
         POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
