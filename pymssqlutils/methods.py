@@ -1,20 +1,12 @@
 import logging
 import os
 from itertools import zip_longest
-from typing import (
-    Dict,
-    List,
-    Tuple,
-    Union,
-    Iterable,
-    Mapping,
-    Any,
-)
+from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import pymssql as sql
 
 from .databaseresult import DatabaseResult
-from .helpers import SQLParameters, SQLParameter
+from .helpers import SQLParameter, SQLParameters
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +208,7 @@ def _execute_batched(
     **kwargs,
 ) -> DatabaseResult:
     """
-    This is an internal method and you should call execute() instead
+    This is an internal method, you should call execute() instead
     """
     if parameters:
         fillvalue = (
@@ -239,13 +231,13 @@ def _execute_batched(
             for i in range(0, len(operations), batch_size)
         ]
 
-    with sql.connect(as_dict=True, **_with_conn_details(kwargs)) as cnxn:
+    with sql.connect(**_with_conn_details(kwargs)) as cnxn:
         with cnxn.cursor() as cur:
             for batch in batched:
                 cur.execute(batch)
-            data = cur.fetchall() if fetch else None
+            result = DatabaseResult(ok=True, fetch=fetch, commit=True, cursor=cur)
         cnxn.commit()
-    return DatabaseResult(data=data, ok=True, fetch=fetch, commit=True)
+    return result
 
 
 def _execute(
@@ -256,9 +248,9 @@ def _execute(
     **kwargs,
 ) -> DatabaseResult:
     """
-    This is an internal method and you should call execute() instead
+    This is an internal method, you should call execute() instead
     """
-    with sql.connect(as_dict=True, **kwargs) as cnxn:
+    with sql.connect(**kwargs) as cnxn:
         with cnxn.cursor() as cur:
             if parameters:
                 fillvalue = (
@@ -274,12 +266,12 @@ def _execute(
                 for operation in operations:
                     cur.execute(operation)
 
-            data = cur.fetchall() if fetch else None
+            result = DatabaseResult(ok=True, fetch=fetch, commit=commit, cursor=cur)
 
         if commit:
             cnxn.commit()
 
-    return DatabaseResult(data=data, ok=True, fetch=fetch, commit=commit)
+    return result
 
 
 def to_sql_list(listlike: Iterable[SQLParameter]) -> str:
