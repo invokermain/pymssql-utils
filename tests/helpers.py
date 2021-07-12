@@ -6,7 +6,7 @@ from pymssql import Cursor
 
 cursor_description = (
     ("Col_Int", 3, None, None, None, None, None),
-    ("Col_BigInt", 5, None, None, None, None, None),
+    ("Col_BigInt", 3, None, None, None, None, None),
     ("Col_SmallInt", 3, None, None, None, None, None),
     ("Col_TinyInt", 3, None, None, None, None, None),
     ("Col_Numeric", 5, None, None, None, None, None),
@@ -46,7 +46,7 @@ cursor_description = (
 cursor_row = [
     (
         1,
-        Decimal("2147483648"),
+        2147483648,
         -123,
         123,
         Decimal("124"),
@@ -151,7 +151,7 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
 
         SELECT
             1 Col_Int,
-            2147483648 Col_BigInt,
+            CAST(2147483648 AS BIGINT) Col_BigInt,
             CAST(-123 AS SMALLINT) Col_SmallInt,
             CAST(123 AS TINYINT) Col_TinyInt,
             CAST(123.55555 AS NUMERIC) Col_Numeric,
@@ -303,7 +303,7 @@ def check_correct_types(data: Dict[str, Any], allow_null=False):
 
     columns = [
         ("Col_Int", int),
-        ("Col_BigInt", float),
+        ("Col_BigInt", int),
         ("Col_SmallInt", int),
         ("Col_TinyInt", int),
         ("Col_Numeric", float),
