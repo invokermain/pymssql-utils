@@ -119,12 +119,14 @@ class MockCursor(Cursor):
             return self.description_
         return cursor_description
 
-    def fetchmany(self, size=10000):
+    def fetchmany(self, size):
         if self.row_count - size <= 0:
-            return self._get_rows(self.row_count)
-        else:
-            self.row_count -= size
-            return self._get_rows(size)
+            out = self._get_rows(self.row_count)
+            self.row_count = 0
+            return out
+
+        self.row_count -= size
+        return self._get_rows(size)
 
     def _get_rows(self, size: int):
         if not self.example_row_:
