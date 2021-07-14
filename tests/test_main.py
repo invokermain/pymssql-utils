@@ -12,6 +12,7 @@ from pymssqlutils import (
     substitute_parameters,
     to_sql_list,
 )
+from pymssqlutils.databaseresult import cursor_generator
 from pymssqlutils.methods import _with_conn_details
 from tests.helpers import (
     MockCursor,
@@ -223,6 +224,7 @@ def test_execute_multiple_operations_multiple_params_batched(
 
 def test_query(mocker: MockerFixture, monkeypatch):
     monkeypatch.setenv("MSSQL_SERVER", "server")
+    mocker.patch("pymssqlutils.databaseresult.cursor_generator", return_value=[])
     conn = mocker.patch.object(pymssql, "connect", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
@@ -238,11 +240,31 @@ def test_query(mocker: MockerFixture, monkeypatch):
     assert not result.commit
 
 
-def test_data_parsing(monkeypatch):
+def test_data_parsing():
     result = DatabaseResult(
         ok=True, fetch=True, commit=False, cursor=MockCursor(row_count=1)
     )
     check_correct_types(result.data[0])
+
+
+def test_correct_row_count_large_query():
+    result = DatabaseResult(
+        ok=True, fetch=True, commit=False, cursor=MockCursor(row_count=25000)
+    )
+    assert len(result.raw_data) == 25000
+    assert len(result.data) == 25000
+
+
+def test_cursor_generator():
+    count = 0
+    row_count = 0
+    rows = 25000
+    for batch in cursor_generator(MockCursor(row_count=rows)):
+        row_count += len(batch)
+        count += 1
+
+    assert count == (rows // 10000) + 1
+    assert row_count == rows
 
 
 def test_data_serializable():
@@ -269,13 +291,10 @@ def test_data_serializable():
     assert isinstance(result.to_json(as_bytes=True), bytes)
 
 
-def test_result_error_handling_on_ignore():
-    # this will throw a pymssql.OperationalError
+def test_result_error_handling_on_ignore(mocker):
+    mocker.patch("pymssqlutils.methods._execute", side_effect=pymssql.OperationalError)
     result = sql.query(
         "test query",
-        user="junk",
-        server="doesnotexist",
-        password="bad",
         raise_errors=False,
     )
     assert result.ok is False
@@ -283,27 +302,18 @@ def test_result_error_handling_on_ignore():
     assert result.data is None
 
 
-def test_result_error_handling_on_ignore_and_raise(monkeypatch):
-    # this will throw a pymssql.OperationalError
-    result = sql.query(
-        "test query",
-        user="junk",
-        server="doesnotexist",
-        password="bad",
-        raise_errors=False,
-    )
+def test_result_error_handling_on_ignore_and_raise(mocker):
+    mocker.patch("pymssqlutils.methods._execute", side_effect=pymssql.OperationalError)
+    result = sql.query("test query", raise_errors=False)
     with pytest.raises(sql.DatabaseError):
         result.raise_error()
 
 
-def test_result_error_handling_on_raise(monkeypatch):
-    # this will throw a pymssql.OperationalError
+def test_result_error_handling_on_raise(mocker):
+    mocker.patch("pymssqlutils.methods._execute", side_effect=pymssql.OperationalError)
     with pytest.raises(pymssql.OperationalError):
         sql.query(
             "test query",
-            user="junk",
-            server="doesnotexist",
-            password="bad",
         )
 
 
