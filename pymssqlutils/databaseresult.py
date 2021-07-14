@@ -21,12 +21,12 @@ def identity(x):
     return x
 
 
-def cursor_generator(cursor_):
+def cursor_generator(cursor_, size=10000):
     while True:
-        out = cursor_.fetchmany(size=10000)
-        if out:
-            yield out
-        return
+        out = cursor_.fetchmany(size=size)
+        if not out:
+            return
+        yield out
 
 
 def _get_data_mapper(sql_type_hint: int, item: Any) -> Callable[[Any], Any]:
