@@ -38,6 +38,8 @@ def test_type_parsing_large_multi_row():
     for data in rows:
         check_correct_types(data)
 
+    assert len(rows) == 15000
+
 
 @pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
 def test_type_parsing_single_row_all_null():
