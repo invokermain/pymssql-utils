@@ -5,6 +5,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 import pymssqlutils as sql
+import pymssqlutils.methods
 from pymssqlutils import (
     DatabaseResult,
     model_to_values,
@@ -62,7 +63,7 @@ def test_set_connection_details(monkeypatch):
 
 def test_execute_single_operations_no_params(mocker: MockerFixture, monkeypatch):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
     )
@@ -76,7 +77,7 @@ def test_execute_single_operations_no_params(mocker: MockerFixture, monkeypatch)
 
 def test_execute_single_operations_single_params(mocker: MockerFixture, monkeypatch):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
     )
@@ -92,7 +93,7 @@ def test_execute_single_operations_single_params(mocker: MockerFixture, monkeypa
 
 def test_execute_single_operations_multiple_params(mocker: MockerFixture, monkeypatch):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
     )
@@ -112,7 +113,7 @@ def test_execute_single_operations_multiple_params_batched(
     mocker: MockerFixture, monkeypatch
 ):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
     )
@@ -129,7 +130,7 @@ def test_execute_single_operations_multiple_params_batched(
 
 def test_execute_multiple_operations_no_params(mocker: MockerFixture, monkeypatch):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
     )
@@ -146,7 +147,7 @@ def test_execute_multiple_operations_no_params(mocker: MockerFixture, monkeypatc
 
 def test_execute_multiple_operations_single_param(mocker: MockerFixture, monkeypatch):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
     )
@@ -165,7 +166,7 @@ def test_execute_multiple_operations_single_param_batched(
     mocker: MockerFixture, monkeypatch
 ):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
     )
@@ -184,7 +185,7 @@ def test_execute_multiple_operations_multiple_params(
     mocker: MockerFixture, monkeypatch
 ):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
     )
@@ -203,7 +204,7 @@ def test_execute_multiple_operations_multiple_params_batched(
     mocker: MockerFixture, monkeypatch
 ):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
     )
@@ -225,7 +226,7 @@ def test_execute_multiple_operations_multiple_params_batched(
 def test_query(mocker: MockerFixture, monkeypatch):
     monkeypatch.setenv("MSSQL_SERVER", "server")
     mocker.patch("pymssqlutils.databaseresult.cursor_generator", return_value=[])
-    conn = mocker.patch.object(pymssql, "connect", autospec=True)
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
     )
@@ -245,6 +246,15 @@ def test_data_parsing():
         ok=True, fetch=True, commit=False, cursor=MockCursor(row_count=1)
     )
     check_correct_types(result.data[0])
+
+
+def test_unhandled_data_parsing():
+    description = (("Col_Range", 3, None, None, None, None, None),)
+    cursor = MockCursor(row_count=1, description=description, row=[(range(1, 2),)])
+    with pytest.warns(RuntimeWarning):
+        result = DatabaseResult(ok=True, fetch=True, commit=False, cursor=cursor)
+
+    assert result.data[0]["Col_Range"] == range(1, 2)
 
 
 def test_correct_row_count_large_query():
