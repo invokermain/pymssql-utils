@@ -1,10 +1,13 @@
 import logging
 import struct
+import warnings
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pymssql as sql
+
+from pymssqlutils.helpers import SQLParameter
 
 logger = logging.getLogger(__name__)
 
@@ -29,29 +32,24 @@ def cursor_generator(cursor_, size=10000):
         yield out
 
 
-def _get_data_mapper(sql_type_hint: int, item: Any) -> Callable[[Any], Any]:
+def _get_data_mapper(sql_type_hint: int, item: Any) -> Callable[[Any], SQLParameter]:
     if sql_type_hint == 1:  # STRING: str
         if isinstance(item, str):
             return identity
 
     if sql_type_hint == 2:  # BINARY: bytes, datetime, time, date
-        if isinstance(item, datetime):
+        if isinstance(item, (datetime, date, time)):
             return identity
-        if isinstance(item, date):
-            return identity
-        if isinstance(item, time):
-            return identity
-        try:
-            _parse_datetimeoffset_from_bytes(item)
-            return _parse_datetimeoffset_from_bytes
-        except struct.error:
-            # it's not a datetime
-            return identity
+        if isinstance(item, bytes):
+            try:
+                _parse_datetimeoffset_from_bytes(item)
+                return _parse_datetimeoffset_from_bytes
+            except struct.error:
+                # it's not a datetime
+                return identity
 
     if sql_type_hint == 3:  # NUMBER: int, float
-        if isinstance(item, int):
-            return identity
-        if isinstance(item, float):
+        if isinstance(item, (int, float)):
             return identity
 
     if sql_type_hint == 4:  # DATETIME: datetime
@@ -63,7 +61,10 @@ def _get_data_mapper(sql_type_hint: int, item: Any) -> Callable[[Any], Any]:
         if isinstance(item, Decimal):
             return float
 
-    raise ValueError(f"unhandled type ({sql_type_hint}, {item}, {type(item)})")
+    warnings.warn(
+        f"unhandled type ({sql_type_hint}, {item}, {type(item)})", RuntimeWarning
+    )
+    return identity
 
 
 class DatabaseError(Exception):
@@ -77,6 +78,8 @@ class DatabaseResult:
     columns: Optional[Tuple[str, ...]]
     error: sql.Error
     source_types: Optional[Tuple[int, ...]]
+    _data_mappers: Optional[List[Optional[Callable[[Any], SQLParameter]]]]
+    _data: Optional[List[Tuple[SQLParameter, ...]]]
 
     def __init__(
         self,
@@ -108,13 +111,13 @@ class DatabaseResult:
                 for item in self._clean_batch(items)
             ]
 
-    def _clean_batch(self, items):
+    def _clean_batch(self, items) -> Tuple[Tuple[SQLParameter, ...]]:
         return tuple(
             tuple(self._clean_item(e, item) for e, item in enumerate(row))
             for row in items
         )
 
-    def _clean_item(self, idx: int, item: Any):
+    def _clean_item(self, idx: int, item: Any) -> SQLParameter:
         if item is None:
             return None
 
@@ -130,7 +133,7 @@ class DatabaseResult:
         return self._data_mappers[idx](item)
 
     @property
-    def data(self) -> Optional[List[Dict[str, Tuple[Any, ...]]]]:
+    def data(self) -> Optional[List[Dict[str, SQLParameter]]]:
         if self._data is not None:
             return [
                 {self.columns[e]: item for e, item in enumerate(row)}
@@ -139,7 +142,7 @@ class DatabaseResult:
         return None
 
     @property
-    def raw_data(self) -> Optional[List[Tuple[Any, ...]]]:
+    def raw_data(self) -> Optional[List[Tuple[SQLParameter, ...]]]:
         if self._data is not None:
             return self._data
         return None

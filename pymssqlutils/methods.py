@@ -1,9 +1,12 @@
 import logging
 import os
+import warnings
+from contextlib import contextmanager
 from itertools import zip_longest
 from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import pymssql as sql
+from pymssql import Connection
 
 from .databaseresult import DatabaseResult
 from .helpers import SQLParameter, SQLParameters
@@ -200,6 +203,54 @@ def execute(
         )
 
 
+@contextmanager
+def _get_connection(**kwargs) -> Connection:
+    conn = sql.connect(**kwargs)
+    tds_major, tds_minor = conn._conn.tds_version_tuple
+    if (tds_major == 7 and tds_minor < 2) or (tds_major < 7):
+        message = (
+            f"Your connection is trying to use TDS Protocol {tds_major}.{tds_minor}"
+            + ", this protocol does not handle dates and datetimes correctly."
+            + " It is strongly suggested you upgrade pymssql to the latest version."
+        )
+        warnings.warn(message, RuntimeWarning)
+    yield conn
+
+
+def _execute(
+    operations: List[str],
+    parameters: List[SQLParameters] = None,
+    commit: bool = False,
+    fetch: bool = False,
+    **kwargs,
+) -> DatabaseResult:
+    """
+    This is an internal method, you should call execute() instead
+    """
+    with _get_connection(**kwargs) as cnxn:
+        with cnxn.cursor() as cur:
+            if parameters:
+                fillvalue = (
+                    parameters[-1]
+                    if len(parameters) < len(operations)
+                    else operations[-1]
+                )
+                for operation, parameter_set in zip_longest(
+                    operations, parameters, fillvalue=fillvalue
+                ):
+                    cur.execute(substitute_parameters(operation, parameter_set))
+            else:
+                for operation in operations:
+                    cur.execute(operation)
+
+            result = DatabaseResult(ok=True, fetch=fetch, commit=commit, cursor=cur)
+
+        if commit:
+            cnxn.commit()
+
+    return result
+
+
 def _execute_batched(
     operations: List[str],
     parameters: List[SQLParameters] = None,
@@ -231,46 +282,12 @@ def _execute_batched(
             for i in range(0, len(operations), batch_size)
         ]
 
-    with sql.connect(**_with_conn_details(kwargs)) as cnxn:
+    with _get_connection(**_with_conn_details(kwargs)) as cnxn:
         with cnxn.cursor() as cur:
             for batch in batched:
                 cur.execute(batch)
             result = DatabaseResult(ok=True, fetch=fetch, commit=True, cursor=cur)
         cnxn.commit()
-    return result
-
-
-def _execute(
-    operations: List[str],
-    parameters: List[SQLParameters] = None,
-    commit: bool = False,
-    fetch: bool = False,
-    **kwargs,
-) -> DatabaseResult:
-    """
-    This is an internal method, you should call execute() instead
-    """
-    with sql.connect(**kwargs) as cnxn:
-        with cnxn.cursor() as cur:
-            if parameters:
-                fillvalue = (
-                    parameters[-1]
-                    if len(parameters) < len(operations)
-                    else operations[-1]
-                )
-                for operation, parameter_set in zip_longest(
-                    operations, parameters, fillvalue=fillvalue
-                ):
-                    cur.execute(substitute_parameters(operation, parameter_set))
-            else:
-                for operation in operations:
-                    cur.execute(operation)
-
-            result = DatabaseResult(ok=True, fetch=fetch, commit=commit, cursor=cur)
-
-        if commit:
-            cnxn.commit()
-
     return result
 
 
