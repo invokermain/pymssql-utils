@@ -13,6 +13,8 @@ from .helpers import SQLParameter, SQLParameters
 
 logger = logging.getLogger(__name__)
 
+TDS_PROTOCOL_CHECKED = False
+
 
 def substitute_parameters(operation: str, parameters: SQLParameters) -> str:
     """
@@ -206,14 +208,17 @@ def execute(
 @contextmanager
 def _get_connection(**kwargs) -> Connection:
     conn = sql.connect(**kwargs)
-    tds_major, tds_minor = conn._conn.tds_version_tuple
-    if (tds_major == 7 and tds_minor < 2) or (tds_major < 7):
-        message = (
-            f"Your connection is trying to use TDS Protocol {tds_major}.{tds_minor}"
-            + ", this protocol does not handle dates and datetimes correctly."
-            + " It is strongly suggested you upgrade pymssql to the latest version."
-        )
-        warnings.warn(message, RuntimeWarning)
+    global TDS_PROTOCOL_CHECKED
+    if not TDS_PROTOCOL_CHECKED:
+        tds_major, tds_minor = conn._conn.tds_version_tuple
+        if tds_major < 7 or tds_minor < 3:
+            message = (
+                f"Your connection is trying to use TDS Protocol {tds_major}.{tds_minor}"
+                + ", this protocol does not support time, date, datetime2 or datetimeoffset. "
+                + "It is strongly suggested you upgrade pymssql to the latest version."
+            )
+            warnings.warn(message, RuntimeWarning)
+        TDS_PROTOCOL_CHECKED = True
     yield conn
 
 
