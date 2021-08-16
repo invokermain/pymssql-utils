@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Data parsing now raises warning when handling an unrecognised type and returns identity function mapping.
+- This package now requires "pymssql>=2.1.4" instead of "pymssql>=2". This was implicit anyway as 2.1.4
+is the minimum version that supports Python 3.7.
 
 ### Added
 - Added a TDS Protocol version warning for users using version 7.2 or below, this is only checked once.
