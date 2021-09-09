@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Dict, List, Tuple
@@ -41,6 +42,7 @@ cursor_description = (
     ("Col_Datetimeoffset6", 2, None, None, None, None, None),
     ("Col_Datetimeoffset7", 2, None, None, None, None, None),
     ("Col_Null", 3, None, None, None, None, None),
+    ("Col_GUID", 2, None, None, None, None, None),
 )
 
 cursor_row = [
@@ -84,6 +86,7 @@ cursor_row = [
         b"T\xfd,\xf1I\x00\x00\x00^\xad\x00\x00<\x00\x06\xe0",
         b"Q\xfd,\xf1I\x00\x00\x00^\xad\x00\x00<\x00\x07\xe0",
         None,
+        uuid.UUID(bytes=b"j!\xcf\x14D\xce\xe6B\xab\xe0\xd9\xbey\x0cMK"),
     )
 ]
 
@@ -168,6 +171,7 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
             CAST('abc' AS NTEXT) Col_Ntext,
             CAST('abc' AS NVARCHAR(100)) Col_Nvarchar,
             CAST('a' AS NCHAR) Col_Nchar,
+            NEWID() Col_GUID,
             CAST(GETDATE() AS DATE) Col_Date,
             CAST(SYSDATETIMEOFFSET() AS time(1)) Col_Time1,
             CAST(SYSDATETIMEOFFSET() AS time(2)) Col_Time2,
@@ -211,6 +215,7 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
                 , Col_Ntext
                 , Col_Nvarchar
                 , Col_Nchar
+                , Col_GUID
                 , Col_Date
                 , Col_Time1
                 , Col_Time2
@@ -264,6 +269,7 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
                 , Col_Ntext = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Ntext)
                 , Col_Nvarchar = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Nvarchar)
                 , Col_Nchar = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Nchar)
+                , Col_GUID = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_GUID)
                 , Col_Date = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Date)
                 , Col_Time1 = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Time1)
                 , Col_Time2 = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Time2)
@@ -320,6 +326,7 @@ def check_correct_types(data: Dict[str, Any], allow_null=False):
         ("Col_Ntext", str),
         ("Col_Nvarchar", str),
         ("Col_Nchar", str),
+        ("Col_GUID", str),
         ("Col_Date", date),
         ("Col_Time1", time),
         ("Col_Time2", time),
