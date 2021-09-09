@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Dict, List, Tuple
@@ -84,8 +85,8 @@ cursor_row = [
         b"T\xfd,\xf1I\x00\x00\x00^\xad\x00\x00<\x00\x05\xe0",
         b"T\xfd,\xf1I\x00\x00\x00^\xad\x00\x00<\x00\x06\xe0",
         b"Q\xfd,\xf1I\x00\x00\x00^\xad\x00\x00<\x00\x07\xe0",
-        b"j!\xcf\x14D\xce\xe6B\xab\xe0\xd9\xbey\x0cMK",
         None,
+        uuid.UUID(bytes=b"j!\xcf\x14D\xce\xe6B\xab\xe0\xd9\xbey\x0cMK"),
     )
 ]
 
@@ -170,7 +171,7 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
             CAST('abc' AS NTEXT) Col_Ntext,
             CAST('abc' AS NVARCHAR(100)) Col_Nvarchar,
             CAST('a' AS NCHAR) Col_Nchar,
-            CAST('55044B34-7F3A-48B5-9F70-18B68EB1C500' AS VARCHAR) Col_GUID,
+            NEWID() Col_GUID,
             CAST(GETDATE() AS DATE) Col_Date,
             CAST(SYSDATETIMEOFFSET() AS time(1)) Col_Time1,
             CAST(SYSDATETIMEOFFSET() AS time(2)) Col_Time2,
