@@ -1,7 +1,7 @@
 import logging
 import struct
-import warnings
 import uuid
+import warnings
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -42,7 +42,7 @@ def _get_data_mapper(sql_type_hint: int, item: Any) -> Callable[[Any], SQLParame
         if isinstance(item, (datetime, date, time)):
             return identity
         if isinstance(item, uuid.UUID):
-            return str(item)
+            return str
         if isinstance(item, bytes):
             try:
                 _parse_datetimeoffset_from_bytes(item)
