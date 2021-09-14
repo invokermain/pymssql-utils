@@ -4,12 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2021-08-16
+### Fixed 
+- SQL Type `Uniqueidentifier` is now handled correctly and returned as a string.
+
 ## [0.1.3] - 2021-08-16
 ### Fixed 
-- Fixed incorrect type hint in `DatabaseResult.data`.
+- Fixed incorrect type hint for `DatabaseResult.data`.
 
 ### Changed
-- Data parsing now raises warning when handling an unrecognised type and returns identity function mapping.
+- Data parsing now raises warning when handling an unrecognised type
+and returns identity function mapping instead of raising an Exception.
 - This package now requires "pymssql>=2.1.4" instead of "pymssql>=2". This was implicit anyway as 2.1.4
 is the minimum version that supports Python 3.7.
 
