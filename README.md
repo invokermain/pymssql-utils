@@ -225,7 +225,7 @@ if not result.ok: # result.ok will be False due to error
     result.write_error_to_logger('An optional query identifier to aid logging')
     
     # the error is stored under the error attribute
-   error = result.error 
+    error = result.error 
    
     # can always re-raise the error
     result.raise_error('Query Identifier')
