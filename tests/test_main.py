@@ -284,7 +284,7 @@ def test_data_serializable():
     example_row = list(cursor_row[0])
 
     # remove bytes as not JSON Serializable
-    for idx in (9, 8):
+    for idx in (37, 9, 8):
         example_row.pop(idx)
         description.pop(idx)
 

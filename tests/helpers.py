@@ -43,6 +43,7 @@ cursor_description = (
     ("Col_Datetimeoffset7", 2, None, None, None, None, None),
     ("Col_Null", 3, None, None, None, None, None),
     ("Col_GUID", 2, None, None, None, None, None),
+    ("Col_HashBytes", 2, None, None, None, None, None),
 )
 
 cursor_row = [
@@ -87,6 +88,7 @@ cursor_row = [
         b"Q\xfd,\xf1I\x00\x00\x00^\xad\x00\x00<\x00\x07\xe0",
         None,
         uuid.UUID(bytes=b"j!\xcf\x14D\xce\xe6B\xab\xe0\xd9\xbey\x0cMK"),
+        b"]A@*\xbcK*v\xb9q\x9d\x91\x10\x17\xc5\x92",
     )
 ]
 
@@ -191,7 +193,8 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
             CAST(SYSDATETIMEOFFSET() AS Datetimeoffset(5)) Col_Datetimeoffset5,
             CAST(SYSDATETIMEOFFSET() AS Datetimeoffset(6)) Col_Datetimeoffset6,
             CAST(SYSDATETIMEOFFSET() AS Datetimeoffset(7)) Col_Datetimeoffset7,
-            NULL Col_Null
+            NULL Col_Null,
+            HASHBYTES('MD5', 'hello') Col_HashBytes
         INTO
             #row;
 
@@ -236,6 +239,7 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
                 , Col_Datetimeoffset6
                 , Col_Datetimeoffset7
                 , Col_Null
+                , Col_HashBytes
             FROM
                 BaseData
             WHERE
@@ -290,6 +294,7 @@ def generate_fake_data_query(rows=1000, null_percentage=0) -> str:
                 , Col_Datetimeoffset6 = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Datetimeoffset6)
                 , Col_Datetimeoffset7 = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Datetimeoffset7)
                 , Col_Null = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_Null)
+                , Col_HashBytes = IIF(RAND(CHECKSUM(NEWID())) <= @NullRatio, Null, Col_HashBytes)
             WHERE Col_Int = @Id
 
             SET @Id = @Id + 1
@@ -347,9 +352,15 @@ def check_correct_types(data: Dict[str, Any], allow_null=False):
         ("Col_Datetimeoffset6", datetime),
         ("Col_Datetimeoffset7", datetime),
         ("Col_Null", type(None)),
+        ("Col_HashBytes", bytes),
     ]
 
     for key, target_type in columns:
         assert do_assert(data[key], target_type)
 
     assert data["Col_Binary"].decode("UTF8") if data["Col_Binary"] is not None else True
+    assert (
+        data["Col_HashBytes"].decode("UTF16")
+        if data["Col_HashBytes"] is not None
+        else True
+    )
