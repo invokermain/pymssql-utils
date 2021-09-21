@@ -47,7 +47,7 @@ def _get_data_mapper(sql_type_hint: int, item: Any) -> Callable[[Any], SQLParame
             try:
                 _parse_datetimeoffset_from_bytes(item)
                 return _parse_datetimeoffset_from_bytes
-            except struct.error:
+            except (ValueError, struct.error):
                 # it's not a datetime
                 return identity
 
