@@ -1,27 +1,26 @@
-# pymssql-utils (BETA)
+# pymssql-utils
 _pymssql-utils_ is a small library that wraps
 [pymssql](https://github.com/pymssql/pymssql) to make your life easier.
-It provides a higher-level API so that you can think less about connections and cursors,
-and more about SQL.
+It provides you with a higher-level API as well as various utility functions
+for generating dynamic queries.
 
-This module's features:
+This module features:
 * Higher-level API that reduces the amount of boilerplate required.
 * Baked-in sensible defaults and usage patterns.
 * Provides optional execution batching, similar to
   [_pyodbc's_](https://github.com/mkleehammer/pyodbc) `fast_executemany`.
-* Provides consistent parsing between SQL Types and native Python types.
+* Provides consistent parsing between SQL Types and native Python types over different platforms and drivers.
 * Makes it easy to serialize your data with
   [_orjson_](https://github.com/ijl/orjson).
 * Provides you with simple and clear options for error handling.
-* Extra utility functions, e.g. for building dynamic SQL queries.
+* Extra utility functions for building dynamic SQL queries.
 * Fixing various edge case bugs that arise when using _pymssql_.
 * Fully type hinted.
 
 This module's enforced opinions (check these work for you):
 * Each execution opens and closes a connection using _pymssql_'s
   context management.
-* Converts numeric data to `float` as this is easier to work with than `Decimal`
-  and for the vast majority of cases 'good enough'.
+* Automatically converts certain data types for ease of use, e.g. `Decimal` -> `float`, `UUID` -> `str`.
   
 When you shouldn't use this module:
 * If you need fine-grained control over your cursors.
@@ -30,14 +29,16 @@ Please raise any suggestions or issues via GitHub.
 
 ## Status
 
-This library is in beta, meaning that
-you should not expect any breaking changes to the public API,
-however, there might still be a few bugs to be found. There is also scope for expanding the library
+This library has been in production use in various projects for over a year,
+so should be considered largely tested and stable.
+There will not be any breaking changes to the public API without a major version release.
+However, there might still be a few bugs to be found. There is also scope for expanding the library
 if new features are requested.
 
 ## Changes
 
-See the repository's [GitHub releases](https://github.com/invokermain/pymssql-utils/releases).
+See the repository's [GitHub releases](https://github.com/invokermain/pymssql-utils/releases)
+or the `CHANGELOG.md`.
 
 ## Usage
 ### Installation
@@ -53,13 +54,13 @@ by running `pip install --upgrade pymssql-utils[pandas]`.
 
 ### Quickstart
 
-This library provides two high-level methods:
- * `query`: executes a SQL query, fetches the result, and DOES NOT commit the transaction.
- * `execute`: similar, but which by default does not fetch the result, and DOES commit the transaction.
+For querying the database this library provides two high-level methods:
+ * `query`: executes a SQL operation that fetches the result, and DOES NOT commit the transaction (by default).
+ * `execute`: executes a SQL operation that does not fetch the result (by default), and DOES commit the transaction.
 
 This separation of _pymssql's_ `execute` is to make your code more explicit and readable.
 
-An example for running a simple query, accessing the returned data and serialising to JSON:
+Here is an example for running a simple query and accessing the returned data:
 ```python
 >>> import pymssqlutils as sql
 >>> result = sql.query(
@@ -68,14 +69,9 @@ An example for running a simple query, accessing the returned data and serialisi
     )
 >>> result.data
 [{'now': datetime.datetime(2021, 1, 21, 23, 31, 11, 272299, tzinfo=datetime.timezone.utc)}]
->>> result.data[0]['now']
-datetime.datetime(2021, 1, 21, 23, 31, 11, 272299, tzinfo=datetime.timezone.utc)
->>> result.to_json()
-'[{"now":"2021-01-21T23:31:11.272299+00:00"}]'
 ```
 
-Running a simple execution:
-
+And running a simple execution:
 ```python
 >>> import pymssqlutils as sql
 >>> result = sql.execute(
@@ -89,9 +85,9 @@ There are two ways of specifying the connection parameters to the SQL Server:
 1. Passing the required parameters
    ([see pymssql docs](https://pymssql.readthedocs.io/en/stable/ref/pymssql.html#pymssql.connect))
    to `query` or `execute` like in the quickstart example above.
-   Note: All extra kwargs passed to these methods are passed on to the `pymssql.connection()`.
-2. Specify the connection parameters in the environment like the example below, this is the recommended way.
-   Note: any parameters given explicitly will take precedence over connection parameters specified in the environment.
+   All extra `**kwargs` passed to these methods are passed on to the `pymssql.connection()`.
+2. Specify the connection parameters in the environment like the example below, this is the recommended way
+   (however, any parameters given explicitly to a method will take priority).
    
 ```python
 import os
@@ -124,16 +120,15 @@ Parameters:
  * `operation (str)`: the SQL operation to execute.
  * `parameters (SQLParameters)`: parameters to substitute into the operation,
    these can be a single value, tuple or dictionary.
- * `raise_errors (bool)`: whether to raise exceptions or to ignore them
-   and let you handle the error yourself via the DatabaseResult class.
- * Any kwargs are passed to _pymssql's_ `connect` method.
+ * `raise_errors (bool)`: whether to raise exceptions or to return the error information with the result.
+ * Any extra kwargs are passed to _pymssql's_ `connect` method.
 
 Returns a `DatabaseResult` class, see documentation below.
 
 #### Execute
 
 The `execute` method executes a SQL Operation which commits the transaction
-& optionally returns the result (by default False).
+& optionally returns the result (not by default).
 
 ```python
 execute(
@@ -149,14 +144,13 @@ execute(
 Parameters:
  * `operations (Union[str, List[str]])`: the SQL Operation/s to execute.
  * `parameters (Union[SQLParameters, List[SQLParameters]])`: parameters to substitute into the operation/s,
-   these can be a single value, tuple or dictionary OR this can be a list of these.
+   these can be a single value, tuple or dictionary OR this can be a list of any of the previous.
  * `batch_size (int)`: if specified concatenates the operations together according to the batch_size,
    this can vastly increase performance if executing many statements.
-   Raises an error if set to True and both operations and parameters are singular
- * `fetch (bool)`: if True returns the result from the LAST execution, default False.  
- * `raise_errors (bool)`: whether to raise exceptions or to ignore them
-   and let you handle the error yourself via the DatabaseResult class.
- * Any kwargs are passed to _pymssql's_ `connect` method.
+   Raises an error if set to True and both operations and parameters are singular.
+ * `fetch (bool)`: if True returns the result from the LAST execution, by default false.  
+ * `raise_errors (bool)`: whether to raise exceptions or to return the error information with the result.
+ * Any extra kwargs are passed to _pymssql's_ `connect` method.
 
 Returns a `DatabaseResult` class, see documentation below.
 
@@ -177,28 +171,28 @@ found in the `pyodbc` package. A value of 500-1000 is a good default.
 
 ### DatabaseResult Class
 
-One big difference between this library and _pymssql_ is that
+One big difference between this library and _pymssql_ is that here
 `execute` and `query` return an instance of the `DatabaseResult` class.
 
 This class holds the returned data, if there is any, and provides
-some useful attributes and methods.
+various useful attributes and methods to work with the result.
 
 #### Attributes
  * `ok`: True if the execution did not error, else False. Only useful if using `raise_errors = False`,
    see below section on Error Handling.
  * `error`: Populated by the error raised during execution (if applicable). Only useful if using `raise_errors = False`.
- * `fetch`: True if results from the execution were fetched (e.g. if using `query`) else False.
- * `commit`: True if the execution was committed (i.e. if using `execute`) else False.
+ * `fetch`: True if results from the execution were fetched (e.g. if using `query`), else False.
+ * `commit`: True if the execution was committed (i.e. if using `execute`), else False.
  * `columns`: A list of the column names in the dataset returned from the execution (if applicable)
  * `data`: The dataset returned from the execution (if applicable), this is a list of dictionaries.
  * `raw_data`: The dataset returned from the execution (if applicable), this is a list of tuples.
 
 #### Methods
- * `to_dataframe`: (requires Pandas installed), returns the dataset as a DataFrame object.
+ * `to_dataframe`: (requires Pandas to be installed), returns the dataset as a DataFrame object.
    All args and kwargs are parsed to the DataFrame constructor.
  * `to_json`: returns the dataset as a json serialized string using the `orjson` library, make sure this 
    optional dependency is installed by running `pip install --upgrade pymssql-utils[json]`.
-   Note that this will fail if your data contains `bytes` type values. By default this method returns a string, but
+   Note that this will fail if your data contains `bytes` type values. By default, this method returns a string, but
    pass `as_bytes = True` to return a byte string.
  * `write_error_to_logger`: writes the error information to the library's logger, optionally pass a `name` parameter
   to allow you to easier indentify the query in the logging output.
@@ -209,9 +203,9 @@ some useful attributes and methods.
 ### Error handling
 
 Both `query` & `execute` take `raise_errors` as a parameter, which is by default `True`. This means that by default
-_pymssql-utils_ will let _pymssql_ raise errors as normal.
+_pymssql-utils_ will allow _pymssql_ to raise errors as normal.
 
-Passing `raise_errors` as `False` will pass any errors onto the `DatabaseResult` class which allows you
+Passing `raise_errors` as `False` will pass any errors onto the `DatabaseResult` class, which allows you
 to handle errors gracefully using the `DatabaseResult` class (see above), e.g.:
 
 ```python
@@ -231,6 +225,9 @@ if not result.ok: # result.ok will be False due to error
     result.raise_error('Query Identifier')
 ```
 
+This can be useful in situations where you do not want the error to propogate, e.g. if querying the database
+as part of an API response.
+
 ### Utility Functions
 #### set_connection_details
 
@@ -239,9 +236,9 @@ the relevant environment variable for the connection kwargs given.
 
 Warning: this function has program wide side effects and will overwrite any
 previously set connection details in the environment; therefore its usage is only recommended
-in single script projects/notebooks. In larger applications
-prefer setting the environment variables directly,
-this will also help keep parity between the Development & Production environments.
+in single script projects/notebooks. All the connections details will also be visible in your code.
+
+The preferred method in production scenarios is to set the environment variables directly.
 
 ```python
 def set_connection_details(
@@ -341,8 +338,10 @@ Example:
 
 ```python3
 >>> my_data = {'value': 1.56, 'insertDate': datetime.now()}
+
 >>> model_to_values(my_data, prepend=[('ForeignId', '@Id')])
 "([ForeignId], [value], [insertDate]) VALUES (@Id, 1.56, N'2021-03-22T13:58:33.758740')"
+
 >>> f"INSERT IN MyTable {model_to_values(my_data, prepend=[('foreignId', '@Id')])}"
 "INSERT IN MyTable ([foreignId], [value], [insertDate]) VALUES (@Id, 1.56, N'2021-03-22T13:58:33.758740')"
 ```
@@ -353,24 +352,25 @@ Example:
 _pymssql-utils_ parses SQL types to their native python types regardless of the environment.
 This ensures consistent behaviour across various systems, see the table below for a comparison.
 
-|                 | Windows       |          | Ubuntu        |          |
-|-----------------|---------------|----------|---------------|----------|
-| SQL DataType    | pymssql-utils | pymssql  | pymssql-utils | pymssql  |
-| Date            | date          | date     | date          | str      |
-| Binary          | bytes         | bytes    | bytes         | bytes    |
-| Time1           | time          | time     | time          | str      |
-| Time2           | time          | time     | time          | str      |
-| Time3           | time          | time     | time          | str      |
-| Time4           | time          | time     | time          | str      |
-| Time5           | time          | time     | time          | str      |
-| Time6           | time          | time     | time          | str      |
-| Time7           | time          | time     | time          | str      |
-| Small DateTime  | datetime      | datetime | datetime      | datetime |
-| Datetime        | datetime      | datetime | datetime      | datetime |
-| Datetime2       | datetime      | datetime | datetime      | str      |
-| DatetimeOffset0 | datetime      | bytes    | datetime      | str      |
-| DatetimeOffset1 | datetime      | bytes    | datetime      | str      |
-| DatetimeOffset2 | datetime      | bytes    | datetime      | str      |
+|                   | Windows         |            | Ubuntu          |            |
+|-------------------|-----------------|------------|-----------------|------------|
+| *SQL DataType*    | *pymssql-utils* | *pymssql*  | *pymssql-utils* | *pymssql*  |
+| Date              | date            | date       | date            | str        |
+| Binary            | bytes           | bytes      | bytes           | bytes      |
+| Time1             | time            | time       | time            | str        |
+| Time2             | time            | time       | time            | str        |
+| Time3             | time            | time       | time            | str        |
+| Time4             | time            | time       | time            | str        |
+| Time5             | time            | time       | time            | str        |
+| Time6             | time            | time       | time            | str        |
+| Time7             | time            | time       | time            | str        |
+| Small DateTime    | datetime        | datetime   | datetime        | datetime   |
+| Datetime          | datetime        | datetime   | datetime        | datetime   |
+| Datetime2         | datetime        | datetime   | datetime        | str        |
+| DatetimeOffset0   | datetime        | bytes      | datetime        | str        |
+| DatetimeOffset1   | datetime        | bytes      | datetime        | str        |
+| DatetimeOffset2   | datetime        | bytes      | datetime        | str        |
+| UniqueIdentifier  | str             | bytes      | str             | ???        |
 
 ## Testing
 
@@ -384,11 +384,9 @@ These tests will then be run (not-skipped), e.g. `pytest . --envfile .test.env`
 
 ### Why _pymssql_ when Microsoft officially recommends _pyodbc_ (opinion)?
 
-The main difference between _pyodbc_ and _pymssql_ is the drivers they use.
-The ODBC drivers are newer and have various levels of support on differing linux distributions,
-and if you develop for containers or distribute code onto different platforms
-you can run into ODBC driver-related issues that FreeTDS tends to not have.
-
 There are other minor reasons someone might prefer _pymssql_, e.g.:
- * _pymssql's_ parameter subsitution is done client-side improving operation visibility.
- * _pymssql_ also has built in support for MSSQL specific data types such as `Datetimeoffset`.
+1. _pymssql_ supports for MSSQL specific data types such as `Datetimeoffset`.
+2. _pymssql's_ parameter subsitution is done client-side improving debug/logging ability.
+3. _pymssql_ are older and more stable, meaning that it has supported by more OS's
+(you shouldn't have to [deal with this](https://docs.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server?view=sql-server-ver15)
+just to run your code in another environment!)
