@@ -6,11 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.5] - 2021-09-21
 ### Fixed 
-- Except ValueError if unable to parse datetime from bytes. Fixes problem with HASHBYTES.
+- Handle specific length byte strings raising exceptions when parsing database result, [closes #15](https://github.com/invokermain/pymssql-utils/issues/15).
 
 ## [0.1.4] - 2021-09-14
 ### Fixed 
-- SQL Type `Uniqueidentifier` is now handled correctly and returned as a string.
+- SQL Type `Uniqueidentifier` is now handled correctly and returned as a string, [closes #13](https://github.com/invokermain/pymssql-utils/issues/13).
 
 ## [0.1.3] - 2021-08-16
 ### Fixed 
