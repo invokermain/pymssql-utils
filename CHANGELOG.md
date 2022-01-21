@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2021-01-21
+### Changed
+- BREAKING: DatabaseResult's `source_types`, `columns`, `raw_data` and `data`,
+  attributes/properties now cannot be `None`, in order to decrease type amiguity. To 
+  facilate this change, they will raise a ValueError if they are called when the 
+  DatabaseResult instance errored, or fetch was false.
+- The SQLParameter type hint (used in various places) is now just an alias for Any.
+- Miscellaneous refactoring and type hinting/guarding throughout the library. The 
+  library now passes a basic `pyright` check with no errors. 
+
+
 ## [0.1.5] - 2021-09-21
 ### Fixed 
 - Handle specific length byte strings raising exceptions when parsing database result, [closes #15](https://github.com/invokermain/pymssql-utils/issues/15).

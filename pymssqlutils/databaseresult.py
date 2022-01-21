@@ -193,7 +193,7 @@ class DatabaseResult:
         if self.ok:
             raise ValueError("This execution did not error")
         if self.error is None:
-            raise ValueError("This execution did not provide an error mesage")
+            raise ValueError("This execution did not provide an error message")
         error_text = str(
             self.error.args[1] if len(self.error.args) >= 2 else self.error
         )
@@ -212,6 +212,8 @@ class DatabaseResult:
         """
         if self.ok:
             raise ValueError("This execution did not error")
+        if self.error is None:
+            raise ValueError("This execution did not provide an error instance")
         raise DatabaseError(
             f"<{name}|fetch={self.fetch},commit={self.commit}> bad execution"
         ) from self.error
@@ -230,7 +232,9 @@ class DatabaseResult:
         try:
             from pandas import DataFrame
         except ImportError:
-            raise RuntimeError("Pandas must be installed to use this method")
+            raise ImportError(
+                "Pandas must be installed to use this method"
+            ) from ImportError
 
         return DataFrame(data=self.data, *args, **kwargs)
 
@@ -248,16 +252,16 @@ class DatabaseResult:
         # noinspection PyUnresolvedReferences
         try:
             from orjson import dumps
-        except ImportError:
-            raise RuntimeError(
+        except ImportError as err:
+            raise ImportError(
                 "ORJSON must be installed to use this method, you can install "
                 + "this by running `pip install --upgrade pymssql-utils[json]`"
-            )
+            ) from err
 
         if as_bytes:
-            return dumps(self.data)
+            return dumps(self._data)
         else:
-            return dumps(self.data).decode("UTF-8")
+            return dumps(self._data).decode("UTF-8")
 
     def _raise_no_data_error(self) -> NoReturn:
         if not self.fetch:
