@@ -18,8 +18,8 @@ TDS_PROTOCOL_CHECKED = False
 
 def substitute_parameters(operation: str, parameters: SQLParameters) -> str:
     """
-    This function returns the SQL operation that would be executed on the server (i.e. after
-    parsing and substituting of parameters). Useful for logging & debugging.
+    This function returns the SQL operation that would be executed on the server (i.e.
+    after parsing and substituting of parameters). Useful for logging & debugging.
 
     :param operation: The SQL operation requiring substitution
     :param parameters: The parameters to substitute in
@@ -49,10 +49,14 @@ def set_connection_details(
 ) -> None:
     """
     Sets the relevant environment variable for each passed parameter
-    :param server: the network address of the SQL server to connect to, sets 'MSSQL_SERVER' in the environment
-    :param database: the default database to use on the SQL server, sets 'MSSQL_DATABASE' in the environment
-    :param user: the user to authenticate against the SQL server with, sets 'MSSQL_USER' in the environment
-    :param password: the password to authenticate against the SQL server with, sets 'MSSQL_PASSWORD' in the environment
+    :param server: the network address of the SQL server to connect to,
+                   sets 'MSSQL_SERVER' in the environment
+    :param database: the default database to use on the SQL server,
+                     sets 'MSSQL_DATABASE' in the environment
+    :param user: the user to authenticate against the SQL server with,
+                 sets 'MSSQL_USER' in the environment
+    :param password: the password to authenticate against the SQL server with,
+                     sets 'MSSQL_PASSWORD' in the environment
     :return:
     """
     if server:
@@ -76,7 +80,8 @@ def _with_conn_details(kwargs: Dict) -> Dict:
 
     if not kwargs["server"]:
         raise ValueError(
-            "server must be passed as a parameter or MSSQL_SERVER must be set in the environment"
+            "`server` must be passed as a parameter or `MSSQL_SERVER` "
+            "must be set in the environment."
         )
 
     return kwargs
@@ -97,7 +102,8 @@ def query(
     :type operation: str
     :param parameters: parameters to substitute into the operation.
     :type parameters: SQLParameters
-    :param raise_errors: if True raises errors, else DatabaseResult class will contain the error details
+    :param raise_errors: if True raises errors, else DatabaseResult class will
+                         contain the error details
     :type raise_errors: bool, optional
     :return: a DatabaseResult class.
     :rtype: DatabaseResult
@@ -124,35 +130,44 @@ def execute(
     **kwargs,
 ) -> DatabaseResult:
     """
-    Used for a SQL Operation/s which COMMIT the transaction. There are two ways of using this function:
+    Used for a SQL Operation/s which COMMIT the transaction.
+    There are two ways of using this function:
 
     Passing in a single operation (str) to operations:
-        * If parameters is singular, this calls pymssql.execute() and executes a single operation
-        * If parameters is plural, this calls pymssql.execute_many() and executes one execution per parameter set
+        * If parameters is singular, this calls pymssql.execute()
+          and executes a single operation
+        * If parameters is plural, this calls pymssql.execute_many()
+          and executes one execution per parameter set
 
     Passing in multiple operations (List[str]) to operations:
-        * If parameters is None, this calls pymssql.execute_many() and executes one execution per operation
-        * If parameters is the same length as operations, this calls pymssql.execute() multiple times
-          and executes one execution per operation.
+        * If parameters is None, this calls pymssql.execute_many()
+          and executes one execution per operation
+        * If parameters is the same length as operations, this calls pymssql.execute()
+          multiple times and executes one execution per operation.
 
-    Optionally batch_size can be specified to use string concatenation to batch the operations, this can
-    provide significant performance gains if executing 100+ small operations. This is similar to fast_executemany
-    found in pyodbc package. A value of 500-1000 is a good default.
+    Optionally batch_size can be specified to use string concatenation to batch
+    the operations, this can provide significant performance gains if executing 100+
+    small operations. This is similar to fast_executemany found in pyodbc package. A
+    value of 500-1000 is a good default.
 
     Fetch can be set to True, this will only return the last result set.
 
-    :param operations: the SQL Operation/s to execute. If this is a list then parameters needs to be None
-        or a list of the same length.
+    :param operations: the SQL Operation/s to execute. If this is a list then
+                       parameters needs to be None or a list of the same length.
     :type operations: Union[str, List[str]]
-    :param parameters: parameters to substitute into the operation. These can be a single value, tuple or dictionary.
-        If operations is a list this parameter needs to either be None or a list of the same length.
+    :param parameters: parameters to substitute into the operation. These can be a
+                       single value, tuple or dictionary. If operations is a list
+                       this parameter needs to either be None or a list of the
+                       same length.
     :type parameters: Union[SQLParameters, List[SQLParameters]], optional
-    :param batch_size: If specified concatenate the operations together according to the batch_size,
-        raises an error if set to True and both operations and parameters are singular
+    :param batch_size: If specified concatenate the operations together
+                       according to the batch_size, raises an error if set to True
+                       and both operations and parameters are singular
     :type batch_size: int, optional
     :param fetch: return the LAST result of the execution
     :type fetch: bool, optional
-    :param raise_errors: if True raises errors, else DatabaseResult class will contain the error details
+    :param raise_errors: if True raises errors, else DatabaseResult class will
+                         contain the error details
     :type raise_errors: bool, optional
     :return: a DatabaseResult class
     :rtype: DatabaseResult
@@ -169,7 +184,8 @@ def execute(
     if batch_size is not None:
         if singular_operations and singular_parameters:
             raise ValueError(
-                "batch_size cannot be used if both operations and parameters are singular"
+                "batch_size cannot be used if both operations "
+                "and parameters are singular"
             )
         if batch_size <= 0:
             raise ValueError("batch_size cannot be negative")
@@ -179,7 +195,8 @@ def execute(
             parameters
         ):
             raise ValueError(
-                "parameters must be the same length as operations if they are both lists"
+                "parameters must be the same length as "
+                "operations if they are both lists"
             )
 
     try:
@@ -214,8 +231,9 @@ def _get_connection(**kwargs) -> Connection:
         if tds_major < 7 or tds_minor < 3:
             message = (
                 f"Your connection is trying to use TDS Protocol {tds_major}.{tds_minor}"
-                + ", this protocol does not support time, date, datetime2 or datetimeoffset. "
-                + "It is strongly suggested you upgrade pymssql to the latest version."
+                ", this protocol does not support time, date, "
+                "datetime2 or datetimeoffset. "
+                "It is strongly suggested you upgrade pymssql to the latest version."
             )
             warnings.warn(message, RuntimeWarning)
         TDS_PROTOCOL_CHECKED = True
@@ -316,20 +334,26 @@ def model_to_values(
     append: List[Tuple[str, str]] = None,
 ) -> str:
     """
-    Transforms a Dict or Mapping into a string of the form: '([attr1], [attr2], ...) VALUES (val1, val2, ...)'.
+    Transforms a Dict or Mapping into a string of the form:
+    '([attr1], [attr2], ...) VALUES (val1, val2, ...)'.
     Intended to be used when creating dynamic SQL INSERT statements.
 
     Prepend and append can be used to add a SQL column with a static or variable value
     at the beginning or end of the values list.
 
-    e.g. passing prepend = [('prependedColumn', '@prependedColumn')] would return a string of the form:
-    '([prependedColumn], [attr1], [attr2], ...) VALUES (@prependedColumn, val1, val2, ...)'
+    e.g. passing prepend = [('prependedColumn', '@prependedColumn')] would return a
+    string of the form:
+    '([prependedColumn], [attr1], ...) VALUES (@prependedColumn, val1, ...)'
 
-    Note: prepended and appended columns are not parameter substituted, this can leave your code open to sql injection.
+    Note: prepended and appended columns are not parameter substituted,
+          this can leave your code open to sql injection.
 
-    :param model: a Dictionary or anything that implements the __dict__ method (e.g. a Pydantic Model)
-    :param prepend: prepend a variable number of columns to the beginning of the values statement.
-    :param append: append a variable number of columns to the end of the values statement.
+    :param model: a Dictionary or anything that implements the __dict__ method
+                  (e.g. a Pydantic Model)
+    :param prepend: prepend a variable number of columns to the beginning of the
+                    values statement.
+    :param append: append a variable number of columns to the end of the
+                   values statement.
     :return: str
     """
     keys = [x[0] for x in prepend] if prepend else []

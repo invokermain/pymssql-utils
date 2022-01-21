@@ -107,6 +107,7 @@ class MockCursor(Cursor):
         self.example_row_ = row
 
         if self.description_:
+            assert self.example_row_ is not None
             assert len(self.description_) == len(self.example_row_[0])
 
     def __enter__(self):
