@@ -13,7 +13,7 @@ from pymssqlutils import (
     substitute_parameters,
     to_sql_list,
 )
-from pymssqlutils.databaseresult import cursor_generator
+from pymssqlutils.databaseresult import _cursor_generator
 from pymssqlutils.methods import _with_conn_details
 from tests.helpers import (
     MockCursor,
@@ -70,7 +70,8 @@ def test_execute_single_operations_no_params(mocker: MockerFixture, monkeypatch)
     result = sql.execute("test query")
     assert cursor.execute.call_args_list == [(("test query",),)]
     assert isinstance(result, DatabaseResult)
-    assert result.data is None
+    with pytest.raises(ValueError):
+        result.data
     assert result.ok
     assert result.commit
 
@@ -86,7 +87,8 @@ def test_execute_single_operations_single_params(mocker: MockerFixture, monkeypa
         (("select 2 val",),),
     ]
     assert isinstance(result, DatabaseResult)
-    assert result.data is None
+    with pytest.raises(ValueError):
+        result.data
     assert result.ok
     assert result.commit
 
@@ -104,7 +106,8 @@ def test_execute_single_operations_multiple_params(mocker: MockerFixture, monkey
         (("select 4 val",),),
     ]
     assert isinstance(result, DatabaseResult)
-    assert result.data is None
+    with pytest.raises(ValueError):
+        result.data
     assert result.ok
     assert result.commit
 
@@ -123,7 +126,8 @@ def test_execute_single_operations_multiple_params_batched(
         (("select 4 val\n;select 5 val",),),
     ]
     assert isinstance(result, DatabaseResult)
-    assert result.data is None
+    with pytest.raises(ValueError):
+        result.data
     assert result.ok
     assert result.commit
 
@@ -140,7 +144,8 @@ def test_execute_multiple_operations_no_params(mocker: MockerFixture, monkeypatc
         (("second query",),),
     ]
     assert isinstance(result, DatabaseResult)
-    assert result.data is None
+    with pytest.raises(ValueError):
+        result.data
     assert result.ok
     assert result.commit
 
@@ -157,7 +162,8 @@ def test_execute_multiple_operations_single_param(mocker: MockerFixture, monkeyp
         (("select 1 val",),),
     ]
     assert isinstance(result, DatabaseResult)
-    assert result.data is None
+    with pytest.raises(ValueError):
+        result.data
     assert result.ok
     assert result.commit
 
@@ -176,7 +182,8 @@ def test_execute_multiple_operations_single_param_batched(
         (("select 1 val\n;select 1 val",),),
     ]
     assert isinstance(result, DatabaseResult)
-    assert result.data is None
+    with pytest.raises(ValueError):
+        result.data
     assert result.ok
     assert result.commit
 
@@ -195,7 +202,8 @@ def test_execute_multiple_operations_multiple_params(
         (("select 2 val",),),
     ]
     assert isinstance(result, DatabaseResult)
-    assert result.data is None
+    with pytest.raises(ValueError):
+        result.data
     assert result.ok
     assert result.commit
 
@@ -218,14 +226,15 @@ def test_execute_multiple_operations_multiple_params_batched(
         (("select 3 val3\n;select 4 val4",),),
     ]
     assert isinstance(result, DatabaseResult)
-    assert result.data is None
+    with pytest.raises(ValueError):
+        result.data
     assert result.ok
     assert result.commit
 
 
 def test_query(mocker: MockerFixture, monkeypatch):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    mocker.patch("pymssqlutils.databaseresult.cursor_generator", return_value=[])
+    mocker.patch("pymssqlutils.databaseresult._cursor_generator", return_value=[])
     conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
@@ -269,7 +278,7 @@ def test_cursor_generator():
     count = 0
     row_count = 0
     rows = 25000
-    for batch in cursor_generator(MockCursor(row_count=rows)):
+    for batch in _cursor_generator(MockCursor(row_count=rows)):
         row_count += len(batch)
         count += 1
 
@@ -309,7 +318,8 @@ def test_result_error_handling_on_ignore(mocker):
     )
     assert result.ok is False
     assert isinstance(result.error, pymssql.OperationalError)
-    assert result.data is None
+    with pytest.raises(ValueError):
+        result.data
 
 
 def test_result_error_handling_on_ignore_and_raise(mocker):

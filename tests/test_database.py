@@ -119,3 +119,9 @@ def test_datetime_offset_handling():
         2020, 6, 1, 12, 30, tzinfo=timezone(timedelta(hours=-1))
     )
     assert result.data[0]["col4"] == 1
+
+
+@pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
+def test_no_return():
+    result = sql.query("SELECT TOP 0 'test' Col1")
+    assert result.data == []

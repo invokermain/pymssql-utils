@@ -29,11 +29,9 @@ Please raise any suggestions or issues via GitHub.
 
 ## Status
 
-This library has been in production use in various projects for over a year,
-so should be considered largely tested and stable.
-There will not be any breaking changes to the public API without a major version release.
-However, there might still be a few bugs to be found. There is also scope for expanding the library
-if new features are requested.
+This library is tested and stable. There will not be any breaking changes to the 
+public API without a major version release.  There is also scope for expanding the 
+library if new features are requested.
 
 ## Changes
 
@@ -177,7 +175,7 @@ One big difference between this library and _pymssql_ is that here
 This class holds the returned data, if there is any, and provides
 various useful attributes and methods to work with the result.
 
-#### Attributes
+#### Attributes & Properties
  * `ok`: True if the execution did not error, else False. Only useful if using `raise_errors = False`,
    see below section on Error Handling.
  * `error`: Populated by the error raised during execution (if applicable). Only useful if using `raise_errors = False`.
@@ -387,6 +385,5 @@ These tests will then be run (not-skipped), e.g. `pytest . --envfile .test.env`
 There are other minor reasons someone might prefer _pymssql_, e.g.:
 1. _pymssql_ supports for MSSQL specific data types such as `Datetimeoffset`.
 2. _pymssql's_ parameter subsitution is done client-side improving debug/logging ability.
-3. _pymssql_ are older and more stable, meaning that it has supported by more OS's
-(you shouldn't have to [deal with this](https://docs.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server?view=sql-server-ver15)
-just to run your code in another environment!)
+3. _pymssql's_ drivers are easily installed, meaning that your code 'just works' in 
+   more environments without extra steps, [e.g. this](https://docs.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server?view=sql-server-ver15)!
