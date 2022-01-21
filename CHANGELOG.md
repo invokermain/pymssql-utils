@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added some more tests, coverage now at 92%.
 ### Changed
 - BREAKING: DatabaseResult's `source_types`, `columns`, `raw_data` and `data`,
-  attributes/properties now cannot be `None`, in order to decrease type amiguity. To 
-  facilate this change, they will raise a ValueError if they are called when the 
+  attributes/properties now cannot be `None`, in order to decrease type ambiguity. To 
+  facilitate this change, they will raise a ValueError if they are called when the 
   DatabaseResult instance errored, or fetch was false.
 - The SQLParameter type hint (used in various places) is now just an alias for Any.
 - Miscellaneous refactoring and type hinting/guarding throughout the library. The 
