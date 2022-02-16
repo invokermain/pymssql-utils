@@ -19,6 +19,6 @@ jobs:
       - name: Black
         run: black . --check
       - name: Flake8
-        run: flake8 --max-line-length 120 --extend-ignore E203
+        run: flake8 --max-line-length 88 --extend-ignore E203
       - name: Isort
-        run: isort . -c
+        run: isort . -c --profile "black"
