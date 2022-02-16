@@ -153,6 +153,10 @@ class DatabaseResult:
         cursor: sql.Cursor = None,
         error: sql.Error = None,
     ):
+        """
+        This should not be initialised directly, instead it will be returned when
+        calling the `execute` or `query` methods within the model.
+        """
         self.ok = ok
         self.fetch = fetch
         self.commit = commit
@@ -177,18 +181,34 @@ class DatabaseResult:
 
     @property
     def source_types(self) -> Tuple[int, ...]:
+        """
+        Returns the current result set's source types as a Tuple of integers
+
+        Raises a ValueError if there are no columns to return.
+        """
         if self._source_types is not None:
             return self._source_types
         self._raise_no_data_error()
 
     @property
     def columns(self) -> Tuple[str, ...]:
+        """
+        Returns the current result set's columns as a Tuple of strings
+
+        Raises a ValueError if there are no columns to return.
+        """
         if self._columns is not None:
             return self._columns
         self._raise_no_data_error()
 
     @property
     def data(self) -> List[Dict[str, Any]]:
+        """
+        Returns the current result set's data as a List of Dictionaries with column
+        names as the key.
+
+        Raises a ValueError if there is no data to return.
+        """
         if self._data is not None:
             return [
                 {self.columns[e]: item for e, item in enumerate(row)}
@@ -198,6 +218,11 @@ class DatabaseResult:
 
     @property
     def raw_data(self) -> List[Tuple[Any, ...]]:
+        """
+        Returns the current result set's data as a List of Tuples.
+
+        Raises a ValueError if there is no data to return.
+        """
         if self._data is not None:
             return self._data
         self._raise_no_data_error()
@@ -248,7 +273,6 @@ class DatabaseResult:
         Writes the error to logger.
 
         :param name: str, an optional name to show in the error string.
-        :return: None
         """
         if self.ok:
             raise ValueError("This execution did not error")
@@ -262,13 +286,12 @@ class DatabaseResult:
             f": <{type(self.error).__name__}> {error_text}"
         )
 
-    def raise_error(self, name: str = "unknown") -> None:
+    def raise_error(self, name: str = "unknown") -> NoReturn:
         """
         Raises a pymssql DatabaseError with an optional name to help identify
         the operation.
 
         :param name: str, an optional name to show in the error string.
-        :return: None
         """
         if self.ok:
             raise ValueError("This execution did not error")
@@ -285,9 +308,6 @@ class DatabaseResult:
 
         :return: a DataFrame
         """
-        if self.data is None:
-            raise ValueError("DatabaseResult class has no data to cast to DataFrame")
-
         # noinspection PyUnresolvedReferences
         try:
             from pandas import DataFrame
@@ -334,7 +354,7 @@ class DatabaseResult:
             )
         if not self.ok:
             raise ValueError(
-                "This DatabaseResult was not successful, " "and therefore has no data."
+                "This DatabaseResult was not successful, and therefore has no data."
             )
         raise ValueError("This DatabaseResult returned no data.")
 

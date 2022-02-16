@@ -48,7 +48,8 @@ def set_connection_details(
     server: str = None, database: str = None, user: str = None, password: str = None
 ) -> None:
     """
-    Sets the relevant environment variable for each passed parameter
+    Sets the relevant environment variable for each passed parameter.
+
     :param server: the network address of the SQL server to connect to,
                    sets 'MSSQL_SERVER' in the environment
     :param database: the default database to use on the SQL server,
