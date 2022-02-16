@@ -12,8 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returned.
 - `DatabaseResult.to_json()` now has an optional `with_columns` parameter.
 - Added some missing doc strings.
-### Changed
-- Tests are now run against Python 3.10 as well.
 
 
 ## [0.2.0] - 2022-01-21
