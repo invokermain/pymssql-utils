@@ -238,17 +238,17 @@ class DatabaseResult:
 
         return DataFrame(data=self.data, *args, **kwargs)
 
-    def to_json(self, as_bytes=False) -> Union[bytes, str]:
+    def to_json(
+        self, as_bytes: bool = False, with_columns: bool = False
+    ) -> Union[bytes, str]:
         """
-        returns the serialized data as a JSON format string.
+        Returns the serialized data as a JSON format string.
         :params as_bytes: bool, if True returns the JSON object as UTF-8 encoded bytes
                           instead of string
+        :params with_columns: bool, if True serializes the data property, otherwise
+                              serializes the raw_data property.
         :return: Union[bytes, str]
         """
-
-        if not self._data:
-            raise ValueError("DatabaseResult class has no data to cast to DataFrame")
-
         # noinspection PyUnresolvedReferences
         try:
             from orjson import dumps
@@ -258,10 +258,13 @@ class DatabaseResult:
                 + "this by running `pip install --upgrade pymssql-utils[json]`"
             ) from err
 
+        data_ = self.data if with_columns else self.raw_data
+        json_ = dumps(data_)
+
         if as_bytes:
-            return dumps(self._data)
-        else:
-            return dumps(self._data).decode("UTF-8")
+            return json_
+
+        return json_.decode("UTF-8")
 
     def _raise_no_data_error(self) -> NoReturn:
         if not self.fetch:
