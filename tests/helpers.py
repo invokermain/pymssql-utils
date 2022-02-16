@@ -126,18 +126,72 @@ class MockCursor(Cursor):
         return cursor_description
 
     def fetchmany(self, size):
-        if self.row_count - size <= 0:
-            out = self._get_rows(self.row_count)
-            self.row_count = 0
+        if self.remaining_rows - size <= 0:
+            out = self._get_rows(self.remaining_rows)
+            self.remaining_rows = 0
             return out
 
-        self.row_count -= size
+        self.remaining_rows -= size
         return self._get_rows(size)
+
+    def __next__(self):
+        if self.remaining_rows == 0:
+            raise StopIteration
+
+        out = self._get_rows(1)
+        self.remaining_rows -= 1
+        return out[0]
 
     def _get_rows(self, size: int):
         if not self.example_row_:
             return cursor_row * size
         return self.example_row_ * size
+
+    def nextset(self):
+        return None
+
+
+class MockMultiSetCursor(MockCursor):
+    def __init__(
+        self,
+        row_count: Tuple[int, ...],
+        description: Tuple[Tuple[Tuple, ...], ...],
+        row: Tuple[List[Tuple[Any, ...]], ...],
+    ):
+        self.executions = []
+
+        self.current_set_idx = 0
+        self.set_count = len(row_count)
+        self.multi_row_count = row_count
+        self.multi_remaining_rows = list(row_count)
+        self.multi_description_ = description
+        self.multi_example_row_ = row
+
+        assert len(self.multi_remaining_rows) == self.set_count
+        assert len(self.multi_description_) == self.set_count
+        assert len(self.multi_example_row_) == self.set_count
+
+    @property
+    def description(self):
+        return self.multi_description_[self.current_set_idx]
+
+    @property
+    def example_row_(self):
+        return self.multi_example_row_[self.current_set_idx]
+
+    @property
+    def remaining_rows(self) -> int:
+        return self.multi_remaining_rows[self.current_set_idx]
+
+    @remaining_rows.setter
+    def remaining_rows(self, value: int):
+        self.multi_remaining_rows[self.current_set_idx] = value
+
+    def nextset(self):
+        if self.current_set_idx == self.set_count - 1:
+            return None
+        self.current_set_idx += 1
+        return 1
 
 
 class MockConnection:
