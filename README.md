@@ -184,6 +184,7 @@ various useful attributes and methods to work with the result.
  * `columns`: A list of the column names in the dataset returned from the execution (if applicable)
  * `data`: The dataset returned from the execution (if applicable), this is a list of dictionaries.
  * `raw_data`: The dataset returned from the execution (if applicable), this is a list of tuples.
+ * `set_count`: Returns the count of result sets that the execution returned, as an integer.
 
 #### Methods
  * `to_dataframe`: (requires Pandas to be installed), returns the dataset as a DataFrame object.
@@ -191,11 +192,16 @@ various useful attributes and methods to work with the result.
  * `to_json`: returns the dataset as a json serialized string using the `orjson` library, make sure this 
    optional dependency is installed by running `pip install --upgrade pymssql-utils[json]`.
    Note that this will fail if your data contains `bytes` type values. By default, this method returns a string, but
-   pass `as_bytes = True` to return a byte string.
+   pass `as_bytes = True` to return a byte string. Specify `with_columns = True` to include the column names
+   (rows as dictionaries instead of tuples).
  * `write_error_to_logger`: writes the error information to the library's logger, optionally pass a `name` parameter
-  to allow you to easier indentify the query in the logging output.
+   to allow you to easier indentify the query in the logging output.
  * `raise_error`: raises a `pymssqlutils.DatabaseError` from the underlying `pymssql` error,
    optionally pass a `name` parameter to allow you to easier indentify the query in the error output.
+ * `next_set`: changes the class to return the data and metadata (columns etc) of the next result set. Returns True
+   if there was a next set to move to, otherwise returns False and doesn't do anything.
+ * `previous_set`: changes the class to return the data and metadata (columns etc) of the previous result set. Returns True
+   if there was a previous set to move to, otherwise returns False and doesn't do anything.
 
 
 ### Error handling
