@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2022-01-21
+### Added
+- Added support for multiple result sets, you can move between result sets using the new
+  `next_set()` and `previous_set()` methods on `DatabaseResult`. `DatabaseResult` class
+  also has a new attribute `set_count` to tell you how many result sets the query
+  returned.
+- `DatabaseResult.to_json()` now has an optional `with_columns` parameter.
+- Added some missing doc strings.
+### Changed
+- Tests are now run against Python 3.10 as well.
+
+
 ## [0.2.0] - 2022-01-21
 ### Added
 - Added some more tests, coverage now at 92%.
