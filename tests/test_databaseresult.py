@@ -1,13 +1,15 @@
 import sys
+from datetime import date, datetime, time
 
+import orjson
 import pandas
 import pymssql
 import pytest
 
 from pymssqlutils import DatabaseResult
-from pymssqlutils.databaseresult import _cursor_generator
 from tests.helpers import (
     MockCursor,
+    MockMultiSetCursor,
     check_correct_types,
     cursor_description,
     cursor_row,
@@ -75,6 +77,52 @@ def test_data_parsing():
     check_correct_types(result.data[0])
 
 
+def test_multi_result_set():
+    result = DatabaseResult(
+        ok=True,
+        fetch=True,
+        commit=False,
+        cursor=MockMultiSetCursor(
+            row_count=(1, 1),
+            description=(
+                (("Col_Int", 3, None, None, None, None, None),),
+                (("Col_Str", 1, None, None, None, None, None),),
+            ),
+            row=([(1,)], [("Hello",)]),
+        ),
+    )
+
+    assert result.set_count == 2
+
+    assert result.raw_data == [(1,)]
+    assert result.data == [{"Col_Int": 1}]
+    assert result.source_types == (3,)
+
+    assert not result.previous_set()
+
+    assert result.raw_data == [(1,)]
+    assert result.data == [{"Col_Int": 1}]
+    assert result.source_types == (3,)
+
+    assert result.next_set()
+
+    assert result.raw_data == [("Hello",)]
+    assert result.data == [{"Col_Str": "Hello"}]
+    assert result.source_types == (1,)
+
+    assert not result.next_set()
+
+    assert result.raw_data == [("Hello",)]
+    assert result.data == [{"Col_Str": "Hello"}]
+    assert result.source_types == (1,)
+
+    assert result.previous_set()
+
+    assert result.raw_data == [(1,)]
+    assert result.data == [{"Col_Int": 1}]
+    assert result.source_types == (3,)
+
+
 def test_source_types():
     result = DatabaseResult(
         ok=True, fetch=True, commit=False, cursor=MockCursor(row_count=1)
@@ -101,18 +149,6 @@ def test_correct_row_count_large_query():
     assert len(result.data) == 25000
 
 
-def test_cursor_generator():
-    count = 0
-    row_count = 0
-    rows = 25000
-    for batch in _cursor_generator(MockCursor(row_count=rows)):
-        row_count += len(batch)
-        count += 1
-
-    assert count == (rows // 10000) + 1
-    assert row_count == rows
-
-
 def test_to_json():
     description = list(cursor_description)
     example_row = list(cursor_row[0])
@@ -122,17 +158,46 @@ def test_to_json():
         example_row.pop(idx)
         description.pop(idx)
 
+    def _json_check(json_, result_, with_columns=False):
+        if with_columns:
+            for loaded_row, original_row in zip(orjson.loads(json_), result_.data):
+                for loaded_item, original_item in zip(
+                    loaded_row.values(), original_row.values()
+                ):
+                    assert original_item == loaded_item or isinstance(
+                        original_item, (datetime, date, time)
+                    )
+        else:
+            for loaded_row, original_row in zip(orjson.loads(json_), result_.raw_data):
+                for loaded_item, original_item in zip(loaded_row, original_row):
+                    assert original_item == loaded_item or isinstance(
+                        original_item, (datetime, date, time)
+                    )
+
     result = DatabaseResult(
         ok=True,
         fetch=True,
         commit=False,
         cursor=MockCursor(
-            row_count=3, row=[tuple(example_row)], description=tuple(description)
+            row_count=2, row=[tuple(example_row)], description=tuple(description)
         ),
     )
 
-    assert isinstance(result.to_json(), str)
-    assert isinstance(result.to_json(as_bytes=True), bytes)
+    json_a = result.to_json()
+    assert isinstance(json_a, str)
+    _json_check(json_a, result)
+
+    json_b = result.to_json(as_bytes=True)
+    assert isinstance(json_b, bytes)
+    _json_check(json_b, result)
+
+    json_a = result.to_json(with_columns=True)
+    assert isinstance(json_a, str)
+    _json_check(json_a, result, with_columns=True)
+
+    json_b = result.to_json(as_bytes=True, with_columns=True)
+    assert isinstance(json_b, bytes)
+    _json_check(json_b, result, with_columns=True)
 
 
 def test_to_json_no_orjson(monkeypatch):

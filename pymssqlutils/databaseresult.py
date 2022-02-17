@@ -18,7 +18,8 @@ from typing import (
 )
 
 import pymssql as sql
-from pymssql import Cursor
+from pymssql import Cursor, InterfaceError, OperationalError
+from pymssql._mssql import MSSQLDatabaseException, MSSQLDriverException
 
 from pymssqlutils.helpers import SQLParameter
 
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
+_result_set = Tuple[List[Tuple[Any, ...]], Tuple[str, ...], Tuple[int, ...]]
 
 
 def _parse_datetimeoffset_from_bytes(item: bytes) -> datetime:
@@ -43,14 +45,6 @@ def _identity(x: T) -> T:
 
 def _unset(x: T) -> T:
     return x
-
-
-def _cursor_generator(cursor_: Cursor, size: int = 10000):
-    while True:
-        out = cursor_.fetchmany(size=size)
-        if not out:
-            return
-        yield out
 
 
 def _get_data_mapper(sql_type_hint: int, item: Any) -> Callable[[Any], SQLParameter]:
@@ -108,12 +102,32 @@ def _get_cleaned_data(
 
         return data_mapper(item)
 
-    def clean_batch(items: Tuple[Tuple[Any, ...]]) -> Tuple[Tuple[Any, ...]]:
-        return tuple(
-            tuple(clean_item(e, item) for e, item in enumerate(row)) for row in items
-        )
+    try:
+        return [
+            tuple(clean_item(e, item) for e, item in enumerate(row)) for row in cursor
+        ]
+    except MSSQLDatabaseException as err:
+        raise OperationalError(err.args[0])
+    except MSSQLDriverException as err:
+        raise InterfaceError(err.args[0])
 
-    return [item for items in _cursor_generator(cursor) for item in clean_batch(items)]
+
+def _get_result_set(cursor: Cursor) -> _result_set:
+    columns = tuple(x[0] for x in cursor.description)
+    source_types = tuple(x[1] for x in cursor.description)
+    data = _get_cleaned_data(cursor, source_types)
+    return data, columns, source_types
+
+
+def _get_result_sets(cursor: Cursor) -> Tuple[_result_set]:
+    if cursor.description is None:
+        return tuple()
+
+    result_sets = [_get_result_set(cursor)]
+    while cursor.nextset():
+        result_sets.append(_get_result_set(cursor))
+
+    return tuple(result_sets)
 
 
 class DatabaseError(Exception):
@@ -128,6 +142,8 @@ class DatabaseResult:
     _columns: Optional[Tuple[str, ...]]
     _source_types: Optional[Tuple[int, ...]]
     _data: Optional[List[Tuple[SQLParameter, ...]]]
+    _result_sets: Optional[Tuple[_result_set]]
+    _current_result_set_index: int
 
     def __init__(
         self,
@@ -137,6 +153,10 @@ class DatabaseResult:
         cursor: sql.Cursor = None,
         error: sql.Error = None,
     ):
+        """
+        This should not be initialised directly, instead it will be returned when
+        calling the `execute` or `query` methods within the model.
+        """
         self.ok = ok
         self.fetch = fetch
         self.commit = commit
@@ -144,32 +164,51 @@ class DatabaseResult:
         self._columns = None
         self._source_types = None
         self._data = None
+        self._result_sets = None
+        self._current_result_set_index = 0
 
         if self.error:
             return
 
         if fetch:
             if cursor is None:
-                raise ValueError("cursor must be passed to fetch")
+                raise ValueError("cursor must be passed to fetch data")
 
-            self._columns = tuple(x[0] for x in cursor.description)
-            self._source_types = tuple(x[1] for x in cursor.description)
-            self._data = _get_cleaned_data(cursor, self._source_types)
+            self._result_sets = _get_result_sets(cursor)
+
+            if self._result_sets:
+                self._set_result_set()
 
     @property
     def source_types(self) -> Tuple[int, ...]:
+        """
+        Returns the current result set's source types as a Tuple of integers
+
+        Raises a ValueError if there are no columns to return.
+        """
         if self._source_types is not None:
             return self._source_types
         self._raise_no_data_error()
 
     @property
     def columns(self) -> Tuple[str, ...]:
+        """
+        Returns the current result set's columns as a Tuple of strings
+
+        Raises a ValueError if there are no columns to return.
+        """
         if self._columns is not None:
             return self._columns
         self._raise_no_data_error()
 
     @property
     def data(self) -> List[Dict[str, Any]]:
+        """
+        Returns the current result set's data as a List of Dictionaries with column
+        names as the key.
+
+        Raises a ValueError if there is no data to return.
+        """
         if self._data is not None:
             return [
                 {self.columns[e]: item for e, item in enumerate(row)}
@@ -179,8 +218,54 @@ class DatabaseResult:
 
     @property
     def raw_data(self) -> List[Tuple[Any, ...]]:
+        """
+        Returns the current result set's data as a List of Tuples.
+
+        Raises a ValueError if there is no data to return.
+        """
         if self._data is not None:
             return self._data
+        self._raise_no_data_error()
+
+    @property
+    def set_count(self) -> int:
+        """
+        Returns the count of current result sets returned by the execution.
+
+        Raises a ValueError if there are no result sets.
+        """
+        if self._result_sets is not None:
+            return len(self._result_sets)
+        self._raise_no_data_error()
+
+    def next_set(self) -> bool:
+        """
+        Sets the DatabaseResult class to use the next result set that
+        the execution returned.
+
+        Returns False if there are no more sets in this direction, otherwise True.
+        """
+        if self._result_sets is not None:
+            if self._current_result_set_index == len(self._result_sets) - 1:
+                return False
+            self._current_result_set_index += 1
+            self._set_result_set()
+            return True
+        self._raise_no_data_error()
+
+    def previous_set(self) -> bool:
+        """
+        Sets the DatabaseResult class to use the previous result set that
+        the execution returned.
+
+        Returns False if there are no more sets in this direction, otherwise True.
+        """
+        if self._result_sets is not None:
+            if self._current_result_set_index == 0:
+                return False
+            self._current_result_set_index -= 1
+            self._set_result_set()
+            return True
         self._raise_no_data_error()
 
     def write_error_to_logger(self, name: str = "unknown") -> None:
@@ -188,7 +273,6 @@ class DatabaseResult:
         Writes the error to logger.
 
         :param name: str, an optional name to show in the error string.
-        :return: None
         """
         if self.ok:
             raise ValueError("This execution did not error")
@@ -202,13 +286,12 @@ class DatabaseResult:
             f": <{type(self.error).__name__}> {error_text}"
         )
 
-    def raise_error(self, name: str = "unknown") -> None:
+    def raise_error(self, name: str = "unknown") -> NoReturn:
         """
         Raises a pymssql DatabaseError with an optional name to help identify
         the operation.
 
         :param name: str, an optional name to show in the error string.
-        :return: None
         """
         if self.ok:
             raise ValueError("This execution did not error")
@@ -225,9 +308,6 @@ class DatabaseResult:
 
         :return: a DataFrame
         """
-        if self.data is None:
-            raise ValueError("DatabaseResult class has no data to cast to DataFrame")
-
         # noinspection PyUnresolvedReferences
         try:
             from pandas import DataFrame
@@ -238,17 +318,17 @@ class DatabaseResult:
 
         return DataFrame(data=self.data, *args, **kwargs)
 
-    def to_json(self, as_bytes=False) -> Union[bytes, str]:
+    def to_json(
+        self, as_bytes: bool = False, with_columns: bool = False
+    ) -> Union[bytes, str]:
         """
-        returns the serialized data as a JSON format string.
+        Returns the serialized data as a JSON format string.
         :params as_bytes: bool, if True returns the JSON object as UTF-8 encoded bytes
                           instead of string
+        :params with_columns: bool, if True serializes the data property, otherwise
+                              serializes the raw_data property.
         :return: Union[bytes, str]
         """
-
-        if not self._data:
-            raise ValueError("DatabaseResult class has no data to cast to DataFrame")
-
         # noinspection PyUnresolvedReferences
         try:
             from orjson import dumps
@@ -258,10 +338,13 @@ class DatabaseResult:
                 + "this by running `pip install --upgrade pymssql-utils[json]`"
             ) from err
 
+        data_ = self.data if with_columns else self.raw_data
+        json_ = dumps(data_)
+
         if as_bytes:
-            return dumps(self._data)
-        else:
-            return dumps(self._data).decode("UTF-8")
+            return json_
+
+        return json_.decode("UTF-8")
 
     def _raise_no_data_error(self) -> NoReturn:
         if not self.fetch:
@@ -271,6 +354,18 @@ class DatabaseResult:
             )
         if not self.ok:
             raise ValueError(
-                "This DatabaseResult was not successful, " "and therefore has no data."
+                "This DatabaseResult was not successful, and therefore has no data."
             )
-        raise ValueError("This DatabaseResult has no data.")
+        raise ValueError("This DatabaseResult returned no data.")
+
+    def _set_result_set(self) -> None:
+        """
+        Decomposes the current result set and assigns the values to the relevant
+        attributes
+        """
+        if self._result_sets is not None:
+            self._columns = self._result_sets[self._current_result_set_index][1]
+            self._source_types = self._result_sets[self._current_result_set_index][2]
+            self._data = self._result_sets[self._current_result_set_index][0]
+        else:
+            self._raise_no_data_error()

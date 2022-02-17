@@ -203,7 +203,31 @@ def test_execute_multiple_operations_multiple_params_batched(
 
 def test_query(mocker: MockerFixture, monkeypatch):
     monkeypatch.setenv("MSSQL_SERVER", "server")
-    mocker.patch("pymssqlutils.databaseresult._cursor_generator", return_value=[])
+    mocker.patch(
+        "pymssqlutils.databaseresult._get_result_sets",
+        return_value=(([(1,)], ("Col1",), (4,)),),
+    ),
+    conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
+    cursor = (
+        conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+    )
+    result = sql.query("test query")
+    assert cursor.execute.call_args_list == [
+        (("test query",),),
+    ]
+    assert isinstance(result, DatabaseResult)
+    assert result.data is not None
+    assert result.ok
+    assert result.fetch
+    assert not result.commit
+
+
+def test_multiset_query(mocker: MockerFixture, monkeypatch):
+    monkeypatch.setenv("MSSQL_SERVER", "server")
+    mocker.patch(
+        "pymssqlutils.databaseresult._get_result_sets",
+        return_value=(([(1,)], ("Col1",), (4,)),),
+    ),
     conn = mocker.patch("pymssqlutils.methods._get_connection", autospec=True)
     cursor = (
         conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value

@@ -107,7 +107,8 @@ def test_datetime_offset_handling():
     }
     result = sql.execute(
         [
-            "CREATE TABLE #temp (col1 VARCHAR(100), col2 DECIMAL(6,2), col3 DATETIMEOFFSET, col4 TINYINT)",
+            "CREATE TABLE #temp (col1 VARCHAR(100), col2 DECIMAL(6,2),"
+            "col3 DATETIMEOFFSET, col4 TINYINT)",
             f"INSERT INTO #temp {model_to_values(model)}",
             "SELECT * FROM #temp",
         ],
@@ -123,5 +124,42 @@ def test_datetime_offset_handling():
 
 @pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
 def test_no_return():
+    result = sql.query("")
+    with pytest.raises(ValueError):
+        result.data
+
+
+@pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
+def test_no_return_with_columns():
     result = sql.query("SELECT TOP 0 'test' Col1")
     assert result.data == []
+
+
+@pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
+def test_multiple_result_sets():
+    result = sql.query("SELECT 1 Col1; SELECT 'Text' Col2")
+
+    assert result.set_count == 2
+    assert result.data == [{"Col1": 1}]
+    assert result.columns == ("Col1",)
+    assert result.source_types == (3,)
+
+    ok = result.next_set()
+    assert ok is True
+    assert result.data == [{"Col2": "Text"}]
+    assert result.columns == ("Col2",)
+    assert result.source_types == (1,)
+
+    ok = result.next_set()
+    assert ok is False
+
+    ok = result.previous_set()
+    assert ok is True
+    assert result.data == [{"Col1": 1}]
+    assert result.columns == ("Col1",)
+    assert result.source_types == (3,)
+
+    ok = result.previous_set()
+    assert ok is False
+
+    assert result.set_count == 2
