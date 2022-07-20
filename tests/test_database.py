@@ -163,3 +163,11 @@ def test_multiple_result_sets():
     assert ok is False
 
     assert result.set_count == 2
+
+
+@pytest.mark.skipif(SKIP_FILE, reason=SKIP_REASON)
+def test_to_dataframe_empty_result():
+    result = sql.query("SELECT TOP 0 sysdatetimeoffset() now, 1 someint")
+    out = result.to_dataframe()
+    assert out.columns[0] == "now"
+    assert out.shape == (0, 2)
