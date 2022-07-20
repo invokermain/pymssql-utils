@@ -316,6 +316,10 @@ class DatabaseResult:
                 "Pandas must be installed to use this method"
             ) from ImportError
 
+        # if there is no data, but we know the columns, return an empty dataframe
+        if not self._data and self._columns:
+            return DataFrame(columns=self._columns)
+
         return DataFrame(data=self.data, *args, **kwargs)
 
     def to_json(
@@ -333,10 +337,7 @@ class DatabaseResult:
         try:
             from orjson import dumps
         except ImportError as err:
-            raise ImportError(
-                "ORJSON must be installed to use this method, you can install "
-                + "this by running `pip install --upgrade pymssql-utils[json]`"
-            ) from err
+            raise ImportError("ORJSON must be installed to use this method") from err
 
         data_ = self.data if with_columns else self.raw_data
         json_ = dumps(data_)

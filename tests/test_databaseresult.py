@@ -240,6 +240,17 @@ def test_cast_to_dataframe():
     assert df.columns.tolist() == list(result.columns)
 
 
+def test_cast_to_dataframe_no_rows():
+    result = DatabaseResult(
+        ok=True, fetch=True, commit=False, cursor=MockCursor(row_count=0)
+    )
+    df = result.to_dataframe()
+
+    assert isinstance(df, pandas.DataFrame)
+    assert df.columns.tolist() == list(result.columns)
+    assert df.shape == (0, len(result.columns))
+
+
 def test_cast_to_dataframe_no_pandas(monkeypatch):
     monkeypatch.setitem(sys.modules, "pandas", None)
 

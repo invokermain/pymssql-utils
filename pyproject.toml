@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymssql-utils"
-version = "0.3.0"
+version = "0.4.0"
 description = "pymssql-utils is a small library that wraps pymssql to make your life easier."
 authors = ["Tim OSullivan <tim@lanster.dev>"]
 license = "GNU LGPLv2.1"
@@ -22,8 +22,8 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.7"
 pymssql = "^2.1.4"
-orjson = { version = ">=3.4.0,<4.0.0", optional = true }
-pandas = { version = ">=1.0.0,<2.0.0", optional = true }
+orjson = { version = "*", optional = true }
+pandas = { version = "*", optional = true }
 
 [tool.poetry.dev-dependencies]
 pytest = "^7"
