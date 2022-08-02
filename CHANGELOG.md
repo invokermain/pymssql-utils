@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2022-08-02
+### Added
+- Added a `py.typed` file so that mypy etc will treat this library as being typed.
+
 ## [0.4.0] - 2022-07-20
 ### Changed
 - `DatabaseResult.to_dataframe()` will now return an empty dataframe with the correct
