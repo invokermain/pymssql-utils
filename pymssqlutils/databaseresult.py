@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
-_result_set = Tuple[List[Tuple[Any, ...]], Tuple[str, ...], Tuple[int, ...]]
+ResultSet = Tuple[List[Tuple[Any, ...]], Tuple[str, ...], Tuple[int, ...]]
 
 
 def _parse_datetimeoffset_from_bytes(item: bytes) -> datetime:
@@ -112,14 +112,14 @@ def _get_cleaned_data(
         raise InterfaceError(err.args[0])
 
 
-def _get_result_set(cursor: Cursor) -> _result_set:
+def _get_result_set(cursor: Cursor) -> ResultSet:
     columns = tuple(x[0] for x in cursor.description)
     source_types = tuple(x[1] for x in cursor.description)
     data = _get_cleaned_data(cursor, source_types)
     return data, columns, source_types
 
 
-def _get_result_sets(cursor: Cursor) -> Tuple[_result_set]:
+def _get_result_sets(cursor: Cursor) -> Tuple[ResultSet, ...]:
     if cursor.description is None:
         return tuple()
 
@@ -142,7 +142,7 @@ class DatabaseResult:
     _columns: Optional[Tuple[str, ...]]
     _source_types: Optional[Tuple[int, ...]]
     _data: Optional[List[Tuple[SQLParameter, ...]]]
-    _result_sets: Optional[Tuple[_result_set]]
+    _result_sets: Optional[Tuple[ResultSet, ...]]
     _current_result_set_index: int
 
     def __init__(
@@ -301,7 +301,7 @@ class DatabaseResult:
             f"<{name}|fetch={self.fetch},commit={self.commit}> bad execution"
         ) from self.error
 
-    def to_dataframe(self, *args, **kwargs) -> "DataFrame":
+    def to_dataframe(self, **kwargs: Any) -> "DataFrame":
         """
         Return the data as a Pandas DataFrame, all args and kwargs are passed to
         the DataFrame initiation method.
@@ -320,7 +320,10 @@ class DatabaseResult:
         if not self._data and self._columns:
             return DataFrame(columns=self._columns)
 
-        return DataFrame(data=self.data, *args, **kwargs)
+        if "data" in kwargs:
+            raise ValueError("You cannot pass your own data via the kwargs.")
+
+        return DataFrame(data=self.data, **kwargs)
 
     def to_json(
         self, as_bytes: bool = False, with_columns: bool = False

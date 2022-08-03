@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2022-08-03
+### Changed
+- `DatabaseResult.to_dataframe` does not take *args anymore (this would have thrown an error anyway).
+- `DatabaseResult.to_dataframe` now throws a ValueError if data is passed as a kwarg.
+### Fixed
+- Fixed type hints (and added missing type hints). This library now passes mypy strict check.
+
 ## [0.4.1] - 2022-08-02
 ### Added
 - Added a `py.typed` file so that mypy etc will treat this library as being typed.

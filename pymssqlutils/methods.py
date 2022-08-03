@@ -3,7 +3,7 @@ import os
 import warnings
 from contextlib import contextmanager
 from itertools import zip_longest
-from typing import Any, Dict, Iterable, List, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 import pymssql as sql
 from pymssql import Connection
@@ -41,11 +41,16 @@ def substitute_parameters(operation: str, parameters: SQLParameters) -> str:
         elif parameters is None:
             parameters = (None,)
 
-    return sql._mssql.substitute_params(operation, parameters).decode("UTF-8")
+    return cast(
+        str, sql._mssql.substitute_params(operation, parameters).decode("UTF-8")
+    )
 
 
 def set_connection_details(
-    server: str = None, database: str = None, user: str = None, password: str = None
+    server: Optional[str] = None,
+    database: Optional[str] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
 ) -> None:
     """
     Sets the relevant environment variable for each passed parameter.
@@ -70,29 +75,28 @@ def set_connection_details(
         os.environ["MSSQL_PASSWORD"] = password
 
 
-def _with_conn_details(kwargs: Dict) -> Dict:
-    if not kwargs:
-        kwargs = {}
+def _with_conn_details(kwargs: Dict[str, Optional[str]]) -> Dict[str, Optional[str]]:
+    out = kwargs.copy()
 
-    kwargs["server"] = kwargs.get("server", os.environ.get("MSSQL_SERVER"))
-    kwargs["database"] = kwargs.get("database", os.environ.get("MSSQL_DATABASE"))
-    kwargs["user"] = kwargs.get("user", os.environ.get("MSSQL_USER"))
-    kwargs["password"] = kwargs.get("password", os.environ.get("MSSQL_PASSWORD"))
+    out["server"] = kwargs.get("server", os.environ.get("MSSQL_SERVER"))
+    out["database"] = kwargs.get("database", os.environ.get("MSSQL_DATABASE"))
+    out["user"] = kwargs.get("user", os.environ.get("MSSQL_USER"))
+    out["password"] = kwargs.get("password", os.environ.get("MSSQL_PASSWORD"))
 
-    if not kwargs["server"]:
+    if not out["server"]:
         raise ValueError(
             "`server` must be passed as a parameter or `MSSQL_SERVER` "
             "must be set in the environment."
         )
 
-    return kwargs
+    return out
 
 
 def query(
     operation: str,
     parameters: SQLParameters = None,
     raise_errors: bool = True,
-    **kwargs,
+    **kwargs: Optional[str],
 ) -> DatabaseResult:
     """
     Execute a SQL Operation which DOES NOT COMMIT the transaction & returns the result.
@@ -113,6 +117,7 @@ def query(
         return _execute(
             [operation],
             [parameters] if parameters else None,
+            commit=False,
             fetch=True,
             **_with_conn_details(kwargs),
         )
@@ -125,10 +130,10 @@ def query(
 def execute(
     operations: Union[str, List[str]],
     parameters: Union[SQLParameters, List[SQLParameters]] = None,
-    batch_size: int = None,
+    batch_size: Optional[int] = None,
     fetch: bool = False,
     raise_errors: bool = True,
-    **kwargs,
+    **kwargs: Optional[str],
 ) -> DatabaseResult:
     """
     Used for a SQL Operation/s which COMMIT the transaction.
@@ -224,7 +229,7 @@ def execute(
 
 
 @contextmanager
-def _get_connection(**kwargs) -> Connection:
+def _get_connection(**kwargs: Union[str, int, bool, None]) -> Connection:
     conn = sql.connect(**kwargs)
     global TDS_PROTOCOL_CHECKED
     if not TDS_PROTOCOL_CHECKED:
@@ -243,10 +248,10 @@ def _get_connection(**kwargs) -> Connection:
 
 def _execute(
     operations: List[str],
-    parameters: List[SQLParameters] = None,
+    parameters: Optional[List[SQLParameters]] = None,
     commit: bool = False,
     fetch: bool = False,
-    **kwargs,
+    **kwargs: Optional[str],
 ) -> DatabaseResult:
     """
     This is an internal method, you should call execute() instead
@@ -262,7 +267,11 @@ def _execute(
                 for operation, parameter_set in zip_longest(
                     operations, parameters, fillvalue=fillvalue
                 ):
-                    cur.execute(substitute_parameters(operation, parameter_set))
+                    statement = substitute_parameters(
+                        operation,  # type: ignore
+                        parameter_set,
+                    )
+                    cur.execute(statement)
             else:
                 for operation in operations:
                     cur.execute(operation)
@@ -277,10 +286,10 @@ def _execute(
 
 def _execute_batched(
     operations: List[str],
-    parameters: List[SQLParameters] = None,
+    parameters: Optional[List[SQLParameters]] = None,
     batch_size: int = 1000,
     fetch: bool = False,
-    **kwargs,
+    **kwargs: Optional[str],
 ) -> DatabaseResult:
     """
     This is an internal method, you should call execute() instead
@@ -291,7 +300,7 @@ def _execute_batched(
         )
         batched = [
             "\n;".join(
-                substitute_parameters(operation, parameter_set)
+                substitute_parameters(operation, parameter_set)  # type: ignore
                 for operation, parameter_set in zip_longest(
                     operations[i : i + batch_size],
                     parameters[i : i + batch_size],
@@ -331,8 +340,8 @@ def to_sql_list(listlike: Iterable[SQLParameter]) -> str:
 
 def model_to_values(
     model: Any,
-    prepend: List[Tuple[str, str]] = None,
-    append: List[Tuple[str, str]] = None,
+    prepend: Optional[List[Tuple[str, str]]] = None,
+    append: Optional[List[Tuple[str, str]]] = None,
 ) -> str:
     """
     Transforms a Dict or Mapping into a string of the form:
@@ -371,7 +380,7 @@ def model_to_values(
     if append:
         keys.extend(x[0] for x in append)
 
-    values = ", ".join(
+    values_as_str = ", ".join(
         [
             *map(str, prepend_values),
             # keep (x,) due to: https://github.com/pymssql/pymssql/issues/696
@@ -381,4 +390,4 @@ def model_to_values(
     )
 
     column_names = "(" + ", ".join(f"[{key}]" for key in keys) + ")"
-    return f"{column_names} VALUES ({values})"
+    return f"{column_names} VALUES ({values_as_str})"
